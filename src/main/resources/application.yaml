@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: SmartLockr
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+        default-page-size: 20
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate.batch_fetch_style: DYNAMIC
+      hibernate.default_batch_fetch_size: 8
+management:
+  server:
+    port: 9090
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-components: always
+server:
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+    min-response-size: 1KB
+  error:
+    include-stacktrace: never
+smartlockr:
+  allowed-origins: ${ALLOWED_ORIGINS}
