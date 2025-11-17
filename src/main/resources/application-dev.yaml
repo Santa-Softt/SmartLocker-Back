@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    username: ${DATABASE_USER:postgres}
+    password: ${DATABASE_PASSWORD:admin}
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/santasoft}
+  jpa:
+    hibernate:
+      ddl-auto: update
+  graphql:
+    graphiql:
+      enabled: true

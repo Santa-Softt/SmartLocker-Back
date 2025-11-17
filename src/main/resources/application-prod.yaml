@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    username: ${DATABASE_USER}
+    password: ${DATABASE_PASSWORD}
+    url: ${DATABASE_URL}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+management:
+   endpoint:
+    health:
+      show-details: when-authorized
