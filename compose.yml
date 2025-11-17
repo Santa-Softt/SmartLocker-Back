@@ -1,0 +1,40 @@
+services:
+  backend:
+    build: .
+    image: santasoft/smartlockr-back:latest
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+    #env_file: vars.env
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DATABASE_URL: jdbc:postgresql://postgres:5432/santasoft
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: admin
+      ALLOWED_ORIGINS: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:18
+    #env_file: vars.env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: santasoft
+    volumes:
+      - db-data:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h localhost" ]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  db-data:
