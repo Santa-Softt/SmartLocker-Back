@@ -1,4 +1,4 @@
-package com.smartlockr.shared.infrastructure.config;
+package com.smartlockr.iam.application.properties;
 
 import jakarta.validation.constraints.NotEmpty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
