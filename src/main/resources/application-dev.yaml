@@ -3,9 +3,23 @@ spring:
     username: ${DATABASE_USER:postgres}
     password: ${DATABASE_PASSWORD:admin}
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/santasoft}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 20
   jpa:
     hibernate:
       ddl-auto: update
   graphql:
     graphiql:
       enabled: true
+security:
+  secret-b64: ${JWT_SECRET_KEY}
+  audience: ${JWT_AUDIENCE:smartlockr-app}
+  issuer: ${JWT_ISSUER:santasoft-api}
+  access-ttl-duration: ${JWT_EXPIRATION_TIME}
+  refresh-token-byte-size: ${REFRESHTOKEN_BYTE_SIZE}
+  refresh-ttl-duration: ${REFRESHTOKEN_EXPIRATION_TIME}
+  oauth-redirect-uri: ${OAUTH_REDIRECT_URI}
+  cookies:
+    secure: ${COOKIES.SECURE}
+    same-site: ${COOKIES.SAMESITE}
