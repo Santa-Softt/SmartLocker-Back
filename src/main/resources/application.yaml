@@ -6,21 +6,34 @@ spring:
       pageable:
         max-page-size: 100
         default-page-size: 20
+  threads:
+    virtual:
+      enabled: true
   jpa:
     open-in-view: false
     properties:
       hibernate.batch_fetch_style: DYNAMIC
       hibernate.default_batch_fetch_size: 8
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - openid
+              - profile
+              - email
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            client-name: Google
+        provider:
+          google:
+            issuer-uri: https://accounts.google.com
 management:
   server:
     port: 9090
-  endpoints:
-    web:
-      exposure:
-        include: health
-  endpoint:
-    health:
-      show-components: always
 server:
   compression:
     enabled: true
