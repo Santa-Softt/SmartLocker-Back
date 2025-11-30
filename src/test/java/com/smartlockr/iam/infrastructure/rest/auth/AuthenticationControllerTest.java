@@ -2,7 +2,7 @@ package com.smartlockr.iam.infrastructure.rest.auth;
 
 import com.smartlockr.iam.application.auth.dto.AuthResponse;
 import com.smartlockr.iam.application.auth.service.AuthenticationService;
-import com.smartlockr.iam.application.properties.SecurityProperties;
+import com.smartlockr.shared.properties.SecurityProperties;
 import com.smartlockr.iam.infrastructure.security.factory.CookieFactory;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;

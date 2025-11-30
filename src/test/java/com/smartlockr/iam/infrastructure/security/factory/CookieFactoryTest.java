@@ -1,6 +1,6 @@
 package com.smartlockr.iam.infrastructure.security.factory;
 
-import com.smartlockr.iam.application.properties.CookieProperties;
+import com.smartlockr.shared.properties.CookieProperties;
 import com.smartlockr.iam.domain.enums.SameSite;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

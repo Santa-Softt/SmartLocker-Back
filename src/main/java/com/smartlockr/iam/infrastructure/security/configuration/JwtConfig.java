@@ -1,6 +1,6 @@
 package com.smartlockr.iam.infrastructure.security.configuration;
 
-import com.smartlockr.iam.application.properties.SecurityProperties;
+import com.smartlockr.shared.properties.SecurityProperties;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

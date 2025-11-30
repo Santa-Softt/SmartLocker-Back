@@ -1,4 +1,4 @@
-package com.smartlockr.iam.application.properties;
+package com.smartlockr.shared.properties;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;

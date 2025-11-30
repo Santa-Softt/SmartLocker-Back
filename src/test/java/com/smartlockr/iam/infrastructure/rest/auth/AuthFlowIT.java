@@ -1,7 +1,7 @@
 package com.smartlockr.iam.infrastructure.rest.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.smartlockr.iam.application.properties.SecurityProperties;
+import com.smartlockr.shared.properties.SecurityProperties;
 import com.smartlockr.iam.domain.enums.Role;
 import com.smartlockr.iam.infrastructure.persistence.model.User;
 import com.smartlockr.iam.infrastructure.persistence.repository.UserRepository;

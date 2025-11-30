@@ -1,7 +1,7 @@
 package com.smartlockr.iam.infrastructure.security.oauth2;
 
 import com.smartlockr.iam.application.auth.service.RefreshTokenService;
-import com.smartlockr.iam.application.properties.SecurityProperties;
+import com.smartlockr.shared.properties.SecurityProperties;
 import com.smartlockr.iam.domain.enums.Role;
 import com.smartlockr.iam.infrastructure.persistence.model.User;
 import com.smartlockr.iam.infrastructure.security.jwt.JwtAdapter;

@@ -1,4 +1,4 @@
-package com.smartlockr.iam.application.properties;
+package com.smartlockr.shared.properties;
 
 import com.smartlockr.iam.domain.enums.SameSite;
 import jakarta.validation.constraints.NotNull;

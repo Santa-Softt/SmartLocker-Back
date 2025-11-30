@@ -1,7 +1,7 @@
 package com.smartlockr.iam.infrastructure.security.jwt;
 
 import com.smartlockr.iam.application.auth.port.JwtProvider;
-import com.smartlockr.iam.application.properties.SecurityProperties;
+import com.smartlockr.shared.properties.SecurityProperties;
 import com.smartlockr.iam.infrastructure.persistence.model.User;
 import io.jsonwebtoken.Jwts;
 import lombok.RequiredArgsConstructor;

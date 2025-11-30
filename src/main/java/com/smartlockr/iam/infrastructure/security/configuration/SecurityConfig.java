@@ -1,6 +1,6 @@
 package com.smartlockr.iam.infrastructure.security.configuration;
 
-import com.smartlockr.iam.application.properties.ApplicationProperties;
+import com.smartlockr.shared.properties.ApplicationProperties;
 import com.smartlockr.iam.infrastructure.security.error.handler.SecurityErrorHandler;
 import com.smartlockr.iam.infrastructure.security.oauth2.GoogleSuccessHandler;
 import jakarta.servlet.http.Cookie;

@@ -1,7 +1,7 @@
 package com.smartlockr.iam.application.auth.service;
 
 import com.smartlockr.iam.application.auth.dto.CreatedRefreshToken;
-import com.smartlockr.iam.application.properties.SecurityProperties;
+import com.smartlockr.shared.properties.SecurityProperties;
 import com.smartlockr.iam.domain.ports.TokenHasher;
 import com.smartlockr.iam.infrastructure.persistence.model.RefreshToken;
 import com.smartlockr.iam.infrastructure.persistence.model.User;

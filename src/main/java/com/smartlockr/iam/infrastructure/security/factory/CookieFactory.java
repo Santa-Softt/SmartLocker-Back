@@ -1,6 +1,6 @@
 package com.smartlockr.iam.infrastructure.security.factory;
 
-import com.smartlockr.iam.application.properties.CookieProperties;
+import com.smartlockr.shared.properties.CookieProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
