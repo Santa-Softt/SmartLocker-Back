@@ -16,19 +16,10 @@ jobs:
       pull-requests: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
       - name: Determine new version from PR labels
         id: determine_version
         env:
@@ -51,13 +42,27 @@ jobs:
             patch=$((patch + 1))
           else
             echo "❌ PR sin etiqueta válida (version:major, version:minor, version:patch)."
-            exit 1
+            echo "SKIP_RELEASE=true" >> $GITHUB_ENV
+            exit 0
           fi
 
           new_tag="v${major}.${minor}.${patch}"
           echo "NEW_VERSION=$new_tag" >> $GITHUB_ENV
+          echo "Nueva versión calculada: $new_tag"
+
+      - name: Set up Docker Buildx
+        if: env.SKIP_RELEASE != 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: env.SKIP_RELEASE != 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and Push Docker image
+        if: env.SKIP_RELEASE != 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -65,6 +70,7 @@ jobs:
           tags: ${{ secrets.DOCKER_USERNAME }}/${{ secrets.APP_NAME }}:${{ env.NEW_VERSION }}
 
       - name: Create and push Git tag
+        if: env.SKIP_RELEASE != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
