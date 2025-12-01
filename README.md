@@ -39,7 +39,7 @@ Permite a los operadores:
 5. [Configuración (vars.env)](#-configuración-varsenv)
 6. [Instalación y Ejecución](#-instalación-y-ejecución)
 7. [Documentación API](#-documentación-api)
-8. [Manejo de Errores](#-manejo-de-errores-envelopes)
+8. [Manejo de Errores](#%EF%B8%8F-manejo-de-errores-envelopes)
 
 ---
 
