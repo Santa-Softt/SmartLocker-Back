@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Service
@@ -49,10 +50,10 @@ public class AuthenticationService {
     }
 
     @Validated
-    public SessionResponse getLoggedUserData(@NotNull UUID id, Long secondsRemaining) {
+    public SessionResponse getLoggedUserData(@NotNull UUID id, Instant expiresAt) {
         var user =  userMapper.toUserResponse(userRepository.findById(id)
                 .orElseThrow(() -> new UsernameNotFoundException("El usuario no existe")));
-        return new SessionResponse(user, new TokenDetails(secondsRemaining));
+        return new SessionResponse(user, new TokenDetails(expiresAt));
     }
 
     @Transactional

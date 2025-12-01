@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record SessionResponse(
         @JsonProperty("user")
         UserResponse userResponse,
-        @JsonProperty("jwt")
+        @JsonProperty("session")
         TokenDetails tokenDetails
 ) {
 }
