@@ -5,13 +5,7 @@ services:
     ports:
       - "8080:8080"
       - "9090:9090"
-    #env_file: vars.env
-    environment:
-      SPRING_PROFILES_ACTIVE: dev
-      DATABASE_URL: jdbc:postgresql://postgres:5432/santasoft
-      DATABASE_USER: postgres
-      DATABASE_PASSWORD: admin
-      ALLOWED_ORIGINS: http://localhost:3000
+    env_file: vars.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -19,7 +13,6 @@ services:
 
   postgres:
     image: postgres:18
-    #env_file: vars.env
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: admin
