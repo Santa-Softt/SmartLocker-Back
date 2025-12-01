@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -141,8 +142,9 @@ class AuthenticationServiceTest {
         void getLoggedUserData_NotFound() {
             UUID id = UUID.randomUUID();
             when(userRepository.findById(id)).thenReturn(Optional.empty());
+            Instant expiresAt = Instant.now().plusSeconds(100L);
 
-            assertThatThrownBy(() -> authenticationService.getLoggedUserData(id, 100L))
+            assertThatThrownBy(() -> authenticationService.getLoggedUserData(id, expiresAt))
                     .isInstanceOf(UsernameNotFoundException.class)
                     .hasMessageContaining("El usuario no existe");
 
@@ -156,6 +158,7 @@ class AuthenticationServiceTest {
             // Arrange
             UUID id = UUID.randomUUID();
             User user = new TestUser();
+            Instant expiresAt = Instant.now().plusSeconds(300L);
 
             UserResponse userResponse = new UserResponse(
                     id,
@@ -169,12 +172,12 @@ class AuthenticationServiceTest {
             when(userMapper.toUserResponse(user)).thenReturn(userResponse);
 
             // Act
-            SessionResponse response = authenticationService.getLoggedUserData(id, 300L);
+            SessionResponse response = authenticationService.getLoggedUserData(id, expiresAt);
 
             // Assert
             assertThat(response.userResponse()).isEqualTo(userResponse);
             assertThat(response.userResponse().role()).isEqualTo(Role.CONSUMER);
-            assertThat(response.tokenDetails().secondsRemaining()).isEqualTo(300L);
+            assertThat(response.tokenDetails().expiresAt()).isEqualTo(expiresAt);
 
             verify(userRepository).findById(id);
             verify(userMapper).toUserResponse(user);
