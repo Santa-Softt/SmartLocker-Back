@@ -2,7 +2,6 @@ package com.smartlockr.iam.infrastructure.security.oauth2;
 
 import com.smartlockr.iam.application.auth.service.RefreshTokenService;
 import com.smartlockr.shared.properties.SecurityProperties;
-import com.smartlockr.iam.domain.enums.Role;
 import com.smartlockr.iam.infrastructure.persistence.model.User;
 import com.smartlockr.iam.infrastructure.security.jwt.JwtAdapter;
 import com.smartlockr.iam.application.auth.service.AuthenticationService;
@@ -52,24 +51,15 @@ class GoogleSuccessHandlerTest {
     private OidcUser oidcUser;
 
     private User user;
-    private UUID userId;
     MockHttpServletRequest request;
     MockHttpServletResponse response;
 
     @BeforeEach
     void setUp() {
-        userId = UUID.randomUUID();
-        user = new User(
-                userId,
-                "Example",
-                "avatar_url",
-                "example@gmail.com",
-                false,
-                false,
-                null,
-                Role.CONSUMER,
-                null
-        );
+        UUID userId = UUID.randomUUID();
+        user = new TestUser();
+        user.setId(userId);
+        user.setEmail("test_email@gmail.com");
 
         request = new MockHttpServletRequest();
         response = new MockHttpServletResponse();
@@ -149,5 +139,9 @@ class GoogleSuccessHandlerTest {
                 () -> googleSuccessHandler.onAuthenticationSuccess(request, response, authentication));
 
         verifyNoInteractions(authenticationService, refreshTokenService, jwtAdapter, cookieFactory);
+    }
+
+    static class TestUser extends User {
+        public TestUser() { super(); }
     }
 }

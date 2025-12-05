@@ -19,6 +19,7 @@ import javax.crypto.SecretKey;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -48,12 +49,15 @@ class AuthFlowIT {
 
     @Test
     void me_returns_session_for_valid_auth_cookie() {
+        var testUser = User.builder()
+                .fullName("Example User")
+                .email("example_user@gmail.com")
+                .avatarUrl("https://random_url")
+                .role(Role.CONSUMER)
+                .build();
+
         // arrange
-        User user = userRepository.save(new User(
-                null, "Example User", "example@gmail.com",
-                "https://avatar.url/img.png", false, false,
-                null, Role.CONSUMER, null
-        ));
+        User user = userRepository.save(testUser);
 
         // Generamos el token con la duración por defecto (válido)
         String validJwt = jwtAdapter.generateAccessToken(user);
@@ -101,11 +105,12 @@ class AuthFlowIT {
     @Test
     void expired_jwt_behaviour() throws Exception {
         // arrange
-        User user = userRepository.save(new User(
-                null, "Expired User", "expired@gmail.com",
-                null, false, false,
-                null, Role.CONSUMER, null
-        ));
+        var user = new TestUser();
+        user.setId(UUID.randomUUID());
+        user.setFullName("Expired User");
+        user.setEmail("expired@gmail.com");
+        user.setRole(Role.CONSUMER);
+
 
         // FABRICAMOS UN TOKEN HISTÓRICO MANUALMENTE
         // 1. Emitido hace 2 horas (IssuedAt)
@@ -143,5 +148,11 @@ class AuthFlowIT {
                 () -> assertThat(node.get("status").asInt()).isEqualTo(401),
                 () -> assertThat(node.get("message").asText()).containsIgnoringCase("expired")
         );
+    }
+
+    static class TestUser extends User {
+        public TestUser() {
+            super();
+        }
     }
 }

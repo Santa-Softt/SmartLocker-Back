@@ -6,6 +6,7 @@ import com.smartlockr.iam.application.auth.port.JwtProvider;
 import com.smartlockr.iam.application.mapper.UserMapper;
 import com.smartlockr.iam.domain.enums.Role;
 import com.smartlockr.iam.infrastructure.persistence.model.User;
+import com.smartlockr.iam.infrastructure.persistence.model.UserPreferences;
 import com.smartlockr.iam.infrastructure.persistence.repository.UserRepository;
 import com.smartlockr.iam.infrastructure.rest.auth.dto.SessionResponse;
 import com.smartlockr.iam.infrastructure.rest.auth.dto.UserResponse;
@@ -51,14 +52,18 @@ class AuthenticationServiceTest {
         void findOrCreateUser_WhenUserExists_ShouldUpdateFields() {
             // Arrange
             String email = "test@smartlockr.com";
-            OidcUser oidcUser = mockOidcUser(email, "New Name", "http://new-avatar.com");
+            OidcUser oidcUser = mockOidcUser(email, "New Name", "https://new-avatar.com");
+            var userPreferences = UserPreferences.builder()
+                    .receiveReceipts(true)
+                    .receivesPromotions(true)
+                    .build();
 
             User existingUser = new TestUser();
             existingUser.setEmail(email);
             existingUser.setFullName("Old Name");
-            existingUser.setAvatarUrl("http://old.com");
+            existingUser.setAvatarUrl("https://old.com");
+            existingUser.setUserPreferences(userPreferences);
 
-            // Classic Mockito: when -> thenReturn
             when(userRepository.findByEmail(email)).thenReturn(Optional.of(existingUser));
 
             // Act
@@ -66,7 +71,8 @@ class AuthenticationServiceTest {
 
             // Assert State
             assertThat(result.getFullName()).isEqualTo("New Name");
-            assertThat(result.getAvatarUrl()).isEqualTo("http://new-avatar.com");
+            assertThat(result.getAvatarUrl()).isEqualTo("https://new-avatar.com");
+            assertThat(result.getUserPreferences()).isEqualTo(userPreferences);
 
             // Assert Interactions (Classic)
             // Verificamos que NUNCA se llame a save (Dirty Checking se encarga)
