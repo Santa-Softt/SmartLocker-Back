@@ -20,6 +20,7 @@ import java.util.*;
 @Entity
 @Getter
 @Setter
+@Builder
 @EqualsAndHashCode(of = "id")
 public class User implements UserDetails,Serializable {
     @Serial
@@ -56,7 +57,10 @@ public class User implements UserDetails,Serializable {
             orphanRemoval = true,
             fetch = FetchType.LAZY
     )
-    private transient Set<RefreshToken> refreshTokens = new HashSet<>();
+    private Set<RefreshToken> refreshTokens = new HashSet<>();
+
+    @Embedded
+    private UserPreferences userPreferences;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
