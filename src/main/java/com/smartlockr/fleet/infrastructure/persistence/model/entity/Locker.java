@@ -25,7 +25,7 @@ public class Locker implements Serializable {
     private static final long serialVersionUID = 1L;
     @UuidGenerator
     @Id
-    private UUID uuid;
+    private UUID id;
     @Column(nullable = false, unique = true)
     private String label;
     @Enumerated(EnumType.STRING)
