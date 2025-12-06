@@ -30,7 +30,7 @@ public class Rental implements Serializable {
     private static final long serialVersionUID = 1L;
     @UuidGenerator
     @Id
-    private UUID uuid;
+    private UUID id;
     private RentalState state;
     private Instant startTime;
     private Instant estimatedEndTime;
@@ -38,9 +38,7 @@ public class Rental implements Serializable {
     private BigDecimal finalCost;
     private boolean isPenalized;
     @ManyToOne
-    @JoinColumn(name = "user_id")
     private User user;
     @ManyToOne
-    @JoinColumn(name = "locker_id")
     private Locker locker;
 }
