@@ -5,10 +5,11 @@ spring:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/santasoft}
     hikari:
       maximum-pool-size: 20
-      minimum-idle: 20
+      minimum-idle: 10
   jpa:
     hibernate:
       ddl-auto: update
+    show-sql: false
   graphql:
     graphiql:
       enabled: true
