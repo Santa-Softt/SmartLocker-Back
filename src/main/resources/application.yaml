@@ -12,8 +12,11 @@ spring:
   jpa:
     open-in-view: false
     properties:
-      hibernate.batch_fetch_style: DYNAMIC
-      hibernate.default_batch_fetch_size: 8
+      hibernate:
+        batch_fetch_style: PADDED
+        default_batch_fetch_size: 12
+        query:
+          in_clause_parameter_padding: true
   security:
     oauth2:
       client:
@@ -35,10 +38,6 @@ management:
   server:
     port: 9090
 server:
-  compression:
-    enabled: true
-    mime-types: application/json,application/xml,text/html,text/xml,text/plain
-    min-response-size: 1KB
   error:
     include-stacktrace: never
 smartlockr:
