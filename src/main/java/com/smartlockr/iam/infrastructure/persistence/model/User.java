@@ -1,6 +1,7 @@
 package com.smartlockr.iam.infrastructure.persistence.model;
 
 import com.smartlockr.iam.domain.enums.Role;
+import com.smartlockr.rental.infrastructure.persistence.entity.model.Rental;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
@@ -58,6 +59,14 @@ public class User implements UserDetails,Serializable {
             fetch = FetchType.LAZY
     )
     private Set<RefreshToken> refreshTokens = new HashSet<>();
+
+    @OneToMany(
+            mappedBy = "user",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    private List<Rental> rentals;
 
     @Embedded
     private UserPreferences userPreferences;
