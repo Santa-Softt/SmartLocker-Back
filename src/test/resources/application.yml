@@ -19,6 +19,7 @@ security:
   refresh-ttl-duration: 7d
   refresh-token-byte-size: 64
   oauth-redirect-uri: "http://localhost/callback"
+  admin-email: "sysadmin@gmail.com"
   cookies:
     secure: false
     same-site: "Lax"
