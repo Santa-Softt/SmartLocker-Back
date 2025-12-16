@@ -3,13 +3,11 @@ package com.smartlockr.iam.application.auth.job;
 import com.smartlockr.iam.application.auth.service.RefreshTokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-@EnableScheduling
 @RequiredArgsConstructor
 public class RefreshTokenCleanupJob {
 
