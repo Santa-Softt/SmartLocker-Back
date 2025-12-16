@@ -7,8 +7,6 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
-import java.io.Serial;
-import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -25,12 +23,11 @@ import java.util.UUID;
                 @Index(name = "idx_rental_locker_id", columnList = "locker_id"),
                 @Index(name = "idx_rental_state", columnList = "state")
         })
-public class Rental implements Serializable {
-    @Serial
-    private static final long serialVersionUID = 1L;
+public class Rental {
     @UuidGenerator
     @Id
     private UUID id;
+    @Enumerated(EnumType.STRING)
     private RentalState state;
     private Instant startTime;
     private Instant estimatedEndTime;
