@@ -6,6 +6,9 @@ spring:
       pageable:
         max-page-size: 100
         default-page-size: 20
+  graphql:
+    schema:
+      file-extensions: .graphql, .graphqls, .gql, .gqls
   threads:
     virtual:
       enabled: true
