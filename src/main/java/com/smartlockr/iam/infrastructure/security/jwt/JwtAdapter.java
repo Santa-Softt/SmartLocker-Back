@@ -1,6 +1,7 @@
 package com.smartlockr.iam.infrastructure.security.jwt;
 
 import com.smartlockr.iam.application.auth.port.JwtProvider;
+import com.smartlockr.iam.infrastructure.persistence.model.SecurityUser;
 import com.smartlockr.shared.properties.SecurityProperties;
 import com.smartlockr.iam.infrastructure.persistence.model.User;
 import io.jsonwebtoken.Jwts;
@@ -23,8 +24,8 @@ public class JwtAdapter implements JwtProvider {
     @Override
     public String generateAccessToken(User user) {
         var userSubject = String.valueOf(user.getId());
-
-        List<String> roles = user.getAuthorities()
+        var securityUser = new SecurityUser(user);
+        List<String> roles = securityUser.getAuthorities()
                 .stream()
                 .map(GrantedAuthority::getAuthority)
                 .toList();

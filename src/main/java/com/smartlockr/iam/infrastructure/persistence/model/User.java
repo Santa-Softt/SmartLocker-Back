@@ -5,12 +5,7 @@ import com.smartlockr.rental.infrastructure.persistence.entity.model.Rental;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 
-import java.io.Serial;
-import java.io.Serializable;
 import java.time.Instant;
 import java.util.*;
 
@@ -23,10 +18,7 @@ import java.util.*;
 @Setter
 @Builder
 @EqualsAndHashCode(of = "id")
-public class User implements UserDetails,Serializable {
-    @Serial
-    private static final long serialVersionUID = 1L;
-
+public class User {
     @Id
     @UuidGenerator
     private UUID id;
@@ -71,18 +63,4 @@ public class User implements UserDetails,Serializable {
     @Embedded
     private UserPreferences userPreferences;
 
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority(this.role.name()));
-    }
-
-    @Override
-    public String getPassword() {
-        return "";
-    }
-
-    @Override
-    public String getUsername() {
-        return this.email;
-    }
 }
