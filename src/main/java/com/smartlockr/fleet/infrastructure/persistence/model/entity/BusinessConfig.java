@@ -20,10 +20,15 @@ public class BusinessConfig {
     @Id
     @UuidGenerator
     private UUID uuid;
+
     private int holdDurationSeconds;
+    private int penaltyPercentage;
     private int streakThreshold;
     private int streakDiscountPercentage;
+
+    @Enumerated(EnumType.STRING)
     private ServiceStatus serviceStatus;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "business_configs_rates", joinColumns = @JoinColumn(name = "business_config_id"))
     private List<Rate> rates;
