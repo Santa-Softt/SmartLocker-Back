@@ -4,6 +4,7 @@ import com.smartlockr.iam.application.auth.dto.AuthResponse;
 import com.smartlockr.iam.application.auth.dto.RotationResult;
 import com.smartlockr.iam.application.auth.port.JwtProvider;
 import com.smartlockr.iam.application.mapper.UserMapper;
+import com.smartlockr.iam.domain.enums.Role;
 import com.smartlockr.iam.infrastructure.persistence.model.User;
 import com.smartlockr.iam.infrastructure.persistence.repository.UserRepository;
 import com.smartlockr.iam.infrastructure.rest.auth.dto.SessionResponse;
@@ -32,15 +33,19 @@ public class AuthenticationService {
     private final RefreshTokenService refreshTokenService;
 
     @Transactional
-    public User findOrCreateUser(OidcUser user) {
-        return userRepository.findByEmail(user.getEmail())
+    public User findOrCreateUser(OidcUser oidcUser) {
+        return userRepository.findByEmail(oidcUser.getEmail())
                 .map(existingUser -> {
-                    existingUser.setFullName(user.getFullName());
-                    existingUser.setAvatarUrl(user.getPicture());
+                    if(existingUser.getRole() != Role.ADMIN){
+                        existingUser.setFullName(oidcUser.getFullName());
+                        existingUser.setAvatarUrl(oidcUser.getPicture());
+                        return existingUser;
+                    }
+                    existingUser.setAvatarUrl(oidcUser.getPicture());
                     return existingUser;
                 })
                 .orElseGet(() -> {
-                    User newUser = userMapper.toNewUser(user);
+                    User newUser = userMapper.toNewUser(oidcUser);
                     return userRepository.save(newUser);
                 });
     }
