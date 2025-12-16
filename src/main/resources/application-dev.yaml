@@ -21,6 +21,7 @@ security:
   refresh-token-byte-size: ${REFRESHTOKEN_BYTE_SIZE}
   refresh-ttl-duration: ${REFRESHTOKEN_EXPIRATION_TIME}
   oauth-redirect-uri: ${OAUTH_REDIRECT_URI}
+  admin-email: ${ADMIN_EMAIL}
   cookies:
     secure: ${COOKIES.SECURE}
     same-site: ${COOKIES.SAMESITE}
