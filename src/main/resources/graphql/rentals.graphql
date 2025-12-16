@@ -1,0 +1,11 @@
+type Mutation{
+    initiateHold(lockerId: ID!): ActiveRental!
+}
+
+type ActiveRental {
+    id: ID!
+    locker: Locker!
+    startTime: String!
+    estimatedEndTime: String!
+    isPenalized: Boolean!
+}

@@ -1,0 +1,25 @@
+type Query {
+    getAvailableLockersBySize(size: LockerSize!): [Locker!]!
+}
+
+type Locker {
+    id: ID!
+    label: String!
+    size: LockerSize!
+    state: LockerState!
+}
+
+enum LockerSize {
+    XS
+    S
+    M
+    L
+    XL
+}
+
+enum LockerState {
+    AVAILABLE
+    HOLD
+    OCCUPIED
+    MAINTENANCE
+}
