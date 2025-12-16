@@ -46,7 +46,6 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/auth/refresh").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .requestMatchers("/graphiql/**", "/graphql/schema").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
