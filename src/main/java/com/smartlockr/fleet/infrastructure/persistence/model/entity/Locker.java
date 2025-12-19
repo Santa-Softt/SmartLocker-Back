@@ -7,8 +7,6 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
-import java.io.Serial;
-import java.io.Serializable;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,9 +18,7 @@ import java.util.UUID;
 @Builder
 @Table(name = "lockers",
         indexes = { @Index(name = "idx_locker_label", columnList = "label", unique = true) })
-public class Locker implements Serializable {
-    @Serial
-    private static final long serialVersionUID = 1L;
+public class Locker {
     @UuidGenerator
     @Id
     private UUID id;
