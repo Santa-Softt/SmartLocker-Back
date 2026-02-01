@@ -1,5 +1,6 @@
 package com.smartlockr.rental.application.service;
 
+import com.smartlockr.fleet.application.service.BusinessService;
 import com.smartlockr.fleet.application.service.FleetService;
 import com.smartlockr.fleet.infrastructure.persistence.model.entity.BusinessConfig;
 import com.smartlockr.fleet.infrastructure.persistence.model.entity.Locker;
@@ -25,6 +26,7 @@ public class RentalService {
     private final RentalRepository rentalRepository;
     private final UserRepository userRepository;
     private final FleetService fleetService;
+    private final BusinessService businessService;
     private final RentalMapper rentalMapper;
 
     @Transactional
@@ -32,7 +34,7 @@ public class RentalService {
         User user = userRepository.findById(UUID.fromString(userId))
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        BusinessConfig config = fleetService.getActiveBusinessConfig();
+        BusinessConfig config = businessService.getActiveBusinessConfig();
         Locker lockedLocker = fleetService.reserveLockerForHold(lockerId);
 
         Instant now = Instant.now();
@@ -49,7 +51,7 @@ public class RentalService {
 
     @Transactional
     public int processExpiredHolds() {
-        BusinessConfig config = fleetService.getActiveBusinessConfig();
+        BusinessConfig config = businessService.getActiveBusinessConfig();
         Instant expirationThreshold = Instant.now().minusSeconds(config.getHoldDurationSeconds());
 
         List<Rental> expiredRentals = rentalRepository.findAllByStateAndStartTimeBefore(RentalState.HOLD, expirationThreshold);
