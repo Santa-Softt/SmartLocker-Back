@@ -1,5 +1,15 @@
 type Query {
     getAvailableLockersBySize(size: LockerSize!): [Locker!]!
+    getLockerSizeSummaries: [LockerSizeSummary!]!
+}
+
+type Subscription {
+    onLockerStateChange: LockerUpdateResponse!
+}
+
+type LockerUpdateResponse {
+    id: ID!
+    state: LockerState!
 }
 
 type Locker {
@@ -22,4 +32,10 @@ enum LockerState {
     HOLD
     OCCUPIED
     MAINTENANCE
+}
+
+type LockerSizeSummary{
+    size: LockerSize!
+    hourlyRate: Float!
+    availableCount: Int!
 }
