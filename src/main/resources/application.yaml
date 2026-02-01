@@ -9,6 +9,9 @@ spring:
   graphql:
     schema:
       file-extensions: .graphql, .graphqls, .gql, .gqls
+    websocket:
+      path: /graphql
+      keep-alive: 30s
   threads:
     virtual:
       enabled: true
@@ -37,6 +40,10 @@ spring:
         provider:
           google:
             issuer-uri: https://accounts.google.com
+  datasource:
+    hikari:
+      connection-timeout: 2000
+      maximum-pool-size: 20
 management:
   server:
     port: 9090
