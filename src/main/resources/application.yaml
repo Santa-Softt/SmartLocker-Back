@@ -42,7 +42,7 @@ spring:
             issuer-uri: https://accounts.google.com
   datasource:
     hikari:
-      connection-timeout: 2000
+      connection-timeout: 5000
       maximum-pool-size: 20
 management:
   server:
