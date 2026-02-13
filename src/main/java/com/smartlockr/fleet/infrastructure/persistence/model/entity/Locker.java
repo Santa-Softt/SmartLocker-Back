@@ -17,7 +17,9 @@ import java.util.UUID;
 @Entity
 @Builder
 @Table(name = "lockers",
-        indexes = { @Index(name = "idx_locker_label", columnList = "label", unique = true) })
+        indexes = {
+                @Index(name = "idx_locker_label", columnList = "label", unique = true),
+                @Index(name = "idx_locker_allocation", columnList = "size, state")})
 public class Locker {
     @UuidGenerator
     @Id
@@ -32,4 +34,11 @@ public class Locker {
     private LockerState state;
     @OneToMany(mappedBy = "locker", fetch = FetchType.LAZY)
     private List<Rental> rentals;
+
+    public void allocate() {
+        if (this.state != LockerState.AVAILABLE) {
+            throw new IllegalStateException("Invariant violation: Locker " + id + " is not available.");
+        }
+        this.state = LockerState.HOLD;
+    }
 }
