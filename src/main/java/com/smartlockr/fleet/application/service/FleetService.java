@@ -12,10 +12,10 @@ import com.smartlockr.fleet.infrastructure.persistence.model.entity.BusinessConf
 import com.smartlockr.fleet.infrastructure.persistence.model.entity.Locker;
 import com.smartlockr.fleet.infrastructure.persistence.repository.LockerRepository;
 import com.smartlockr.fleet.infrastructure.persistence.repository.dto.LockerCountSummary;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,20 +45,13 @@ public class FleetService {
         }
 
         @Transactional
-        public Locker reserveLockerForHold(UUID lockerId) {
-            if (lockerId == null) {
-                throw new IllegalArgumentException("Locker ID cannot be null.");
-            }
+        public Locker reserveLockerForHold(LockerSize lockerSize) {
 
             // Bloqueo pesimista para evitar condiciones de carrera en alta concurrencia
-            Locker locker = lockerRepository.findByIdWithPessimisticLock(lockerId)
-                    .orElseThrow(() -> new EntityNotFoundException("Locker not found with ID: " + lockerId));
+            var locker = lockerRepository.findAndLockOne(lockerSize, LockerState.AVAILABLE, Limit.of(1))
+                    .orElseThrow(() -> new UnavailableLockerException("Currently we haven't lockers available for this time"));
 
-            if (locker.getState() != LockerState.AVAILABLE) {
-                throw new UnavailableLockerException("Locker " + locker.getLabel() + " is not available for reservation.");
-            }
-
-            locker.setState(LockerState.HOLD);
+            locker.allocate();
 
             lockerRepository.save(locker);
 
