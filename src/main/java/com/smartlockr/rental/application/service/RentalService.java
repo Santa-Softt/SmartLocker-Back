@@ -2,6 +2,7 @@ package com.smartlockr.rental.application.service;
 
 import com.smartlockr.fleet.application.service.BusinessService;
 import com.smartlockr.fleet.application.service.FleetService;
+import com.smartlockr.fleet.domain.enums.LockerSize;
 import com.smartlockr.fleet.infrastructure.persistence.model.entity.BusinessConfig;
 import com.smartlockr.fleet.infrastructure.persistence.model.entity.Locker;
 import com.smartlockr.iam.infrastructure.persistence.model.User;
@@ -30,12 +31,12 @@ public class RentalService {
     private final RentalMapper rentalMapper;
 
     @Transactional
-    public RentalResponse initiateHold(UUID lockerId, String userId) {
+    public RentalResponse initiateHold(LockerSize lockerSize, String userId) {
         User user = userRepository.findById(UUID.fromString(userId))
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         BusinessConfig config = businessService.getActiveBusinessConfig();
-        Locker lockedLocker = fleetService.reserveLockerForHold(lockerId);
+        Locker lockedLocker = fleetService.reserveLockerForHold(lockerSize);
 
         Instant now = Instant.now();
         Instant expiration = now.plusSeconds(config.getHoldDurationSeconds());
