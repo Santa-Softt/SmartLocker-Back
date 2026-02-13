@@ -1,5 +1,5 @@
 type Mutation{
-    initiateHold(lockerId: ID!): ActiveRental!
+    initiateHold(size: LockerSize!): ActiveRental!
 }
 
 type ActiveRental {
