@@ -4,6 +4,7 @@ import com.smartlockr.shared.properties.ApplicationProperties;
 import com.smartlockr.iam.infrastructure.security.error.handler.SecurityErrorHandler;
 import com.smartlockr.iam.infrastructure.security.oauth2.GoogleSuccessHandler;
 import jakarta.servlet.http.Cookie;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -28,6 +29,9 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    @Value("${graphiql.public-access:false}")
+    private boolean isPublicAccessEnabled;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    BearerTokenResolver bearerTokenResolver,
@@ -43,11 +47,14 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/auth/refresh").permitAll()
-                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .anyRequest().authenticated()
-                )
+                .authorizeHttpRequests(authorize -> {
+                    if (isPublicAccessEnabled)
+                        authorize.requestMatchers("/graphiql").permitAll();
+                    authorize.requestMatchers("/auth/refresh").permitAll()
+                            .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                            .anyRequest().authenticated();
+                })
+
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(securityErrorHandler)
                         .accessDeniedHandler(securityErrorHandler)
