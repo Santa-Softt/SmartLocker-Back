@@ -2,6 +2,7 @@ package com.smartlockr.iam.infrastructure.security.configuration;
 
 import com.smartlockr.shared.properties.SecurityProperties;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.WeakKeyException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -21,7 +22,21 @@ public class JwtConfig {
 
     @Bean
     public SecretKey jwtSecretKey(SecurityProperties securityProperties) {
-        byte[] keyBytes = Base64.getUrlDecoder().decode(securityProperties.secretB64());
+        String b64Key = securityProperties.secretB64();
+
+        if (b64Key == null || b64Key.isEmpty()) {
+            throw new IllegalArgumentException("La clave JWT_SECRET no está configurada.");
+        }
+
+        byte[] keyBytes = Base64.getUrlDecoder().decode(b64Key);
+
+        if (keyBytes.length < 64) {
+            throw new WeakKeyException(
+                    "La clave proporcionada tiene " + (keyBytes.length * 8) +
+                            " bits. Para HS512 se requieren al menos 512 bits (64 bytes)."
+            );
+        }
+
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
