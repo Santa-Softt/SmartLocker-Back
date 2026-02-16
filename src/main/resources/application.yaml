@@ -52,3 +52,5 @@ server:
     include-stacktrace: never
 smartlockr:
   allowed-origins: ${ALLOWED_ORIGINS}
+graphiql:
+  public-access: ${DEV_GRAPHIQL}
