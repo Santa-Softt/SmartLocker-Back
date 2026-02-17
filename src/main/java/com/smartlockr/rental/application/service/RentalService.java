@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,23 +32,40 @@ public class RentalService {
     private final RentalMapper rentalMapper;
 
     @Transactional
-    public RentalResponse initiateHold(LockerSize lockerSize, String userId) {
+    public RentalResponse initiateHold(LockerSize size, String userId, Integer durationMinutes) {
+
+        if (durationMinutes == null || durationMinutes <= 0) {
+            throw new IllegalArgumentException("La duración debe ser mayor a 0 minutos.");
+        }
+
         User user = userRepository.findById(UUID.fromString(userId))
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         BusinessConfig config = businessService.getActiveBusinessConfig();
-        Locker lockedLocker = fleetService.reserveLockerForHold(lockerSize);
+
+        if (durationMinutes < config.getMinRentalDurationMinutes() ||
+                durationMinutes > config.getMaxRentalDurationMinutes()) {
+            throw new IllegalArgumentException("Duración no permitida por configuración.");
+        }
+
+        Locker lockedLocker = fleetService.reserveLockerForHold(size);
 
         Instant now = Instant.now();
-        Instant expiration = now.plusSeconds(config.getHoldDurationSeconds());
+
+        Instant serviceExpiration = now.plus(durationMinutes, ChronoUnit.MINUTES);
+
+        Instant holdExpiration = now.plusSeconds(config.getHoldDurationSeconds());
 
         Rental rental = rentalMapper.toNewHoldRental(
                 user,
                 lockedLocker,
                 now,
-                expiration);
+                serviceExpiration
+        );
 
-        return rentalMapper.toActiveRentalResponse(rentalRepository.save(rental));
+        Rental savedRental = rentalRepository.save(rental);
+
+        return rentalMapper.toActiveRentalResponse(savedRental, holdExpiration);
     }
 
     @Transactional
