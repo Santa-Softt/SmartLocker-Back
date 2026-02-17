@@ -20,8 +20,12 @@ public class BusinessConfig {
     @Id
     @UuidGenerator
     private UUID uuid;
-
     private int holdDurationSeconds;
+
+    // Definición de límites para la duración del alquiler
+    private int minRentalDurationMinutes;
+    private int maxRentalDurationMinutes;
+
     private int penaltyPercentage;
     private int streakThreshold;
     private int streakDiscountPercentage;

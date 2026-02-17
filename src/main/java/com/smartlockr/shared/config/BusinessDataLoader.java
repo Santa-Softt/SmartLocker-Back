@@ -69,6 +69,8 @@ public class BusinessDataLoader implements ApplicationRunner {
     private void createBusinessConfig() {
         BusinessConfig config = BusinessConfig.builder()
                 .holdDurationSeconds(120)
+                .minRentalDurationMinutes(5)
+                .maxRentalDurationMinutes(1440)
                 .penaltyPercentage(50)
                 .streakDiscountPercentage(10)
                 .streakThreshold(7)
