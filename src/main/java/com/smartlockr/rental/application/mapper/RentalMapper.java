@@ -13,8 +13,9 @@ import java.time.Instant;
 @Mapper(componentModel = "spring", uses = LockerMapper.class)
 public interface RentalMapper {
 
+    @Mapping(target = "holdExpiresAt", source = "holdExpiration")
     @Mapping(target = "locker", source = "rental.locker")
-    RentalResponse toActiveRentalResponse(Rental rental);
+    RentalResponse toActiveRentalResponse(Rental rental, Instant holdExpiration);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "user", source = "user")
