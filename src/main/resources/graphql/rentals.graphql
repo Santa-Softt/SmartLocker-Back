@@ -1,5 +1,11 @@
 type Mutation{
-    initiateHold(size: LockerSize!): ActiveRental!
+    """
+    Argumentos:
+    - size: El tamaño del Locker.
+    - durationMinutes: El tiempo que el usuario desea alquilar (ej. 60, 120).
+    Debe estar dentro de los límites configurados en el sistema.
+    """
+    initiateHold(size: LockerSize!, durationMinutes: Int!): ActiveRental!
 }
 
 type ActiveRental {
@@ -7,5 +13,6 @@ type ActiveRental {
     locker: Locker!
     startTime: String!
     estimatedEndTime: String!
+    holdExpiresAt: String!
     isPenalized: Boolean!
 }
