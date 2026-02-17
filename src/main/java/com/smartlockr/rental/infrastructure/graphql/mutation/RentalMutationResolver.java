@@ -17,7 +17,9 @@ public class RentalMutationResolver {
     private final RentalService rentalService;
 
     @MutationMapping
-    public RentalResponse initiateHold(@Argument LockerSize size, @AuthenticationPrincipal Jwt jwt){
-        return rentalService.initiateHold(size, jwt.getSubject());
+    public RentalResponse initiateHold(@Argument LockerSize size,
+                                       @Argument Integer durationMinutes,
+                                       @AuthenticationPrincipal Jwt jwt){
+        return rentalService.initiateHold(size, jwt.getSubject(), durationMinutes);
     }
 }
