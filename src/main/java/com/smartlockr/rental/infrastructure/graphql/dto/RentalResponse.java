@@ -10,6 +10,7 @@ public record RentalResponse(
         LockerResponse locker,
         Instant startTime,
         Instant estimatedEndTime,
+        Instant holdExpiresAt,
         boolean isPenalized
 
 ) {
