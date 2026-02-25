@@ -31,7 +31,6 @@ public class Rental {
     private RentalState state;
     private Instant startTime;
     private Instant estimatedEndTime;
-    private Instant endTime;
     private BigDecimal finalCost;
     private boolean isPenalized;
     @ManyToOne
