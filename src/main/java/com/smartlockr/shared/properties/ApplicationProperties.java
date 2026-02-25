@@ -6,6 +6,13 @@ import org.springframework.validation.annotation.Validated;
 
 import java.util.Set;
 
+
+/**
+ * Root application configuration properties.
+ * Values are loaded from the "smartlockr" prefix.
+ * Fields:
+ * - allowedOrigins: allowed CORS origins
+ */
 @Validated
 @ConfigurationProperties(prefix = "smartlockr")
 public record ApplicationProperties(

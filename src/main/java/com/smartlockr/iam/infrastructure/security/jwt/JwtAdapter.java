@@ -14,6 +14,11 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 
+ 
+/**
+ * JWT provider adapter that issues access tokens using a symmetric HMAC secret.
+ * Tokens are signed with HS512 and include issuer, audience, subject, expiration and roles.
+ */
 @Component
 @RequiredArgsConstructor
 public class JwtAdapter implements JwtProvider {
@@ -21,6 +26,18 @@ public class JwtAdapter implements JwtProvider {
     private final SecretKey jwtSecretKey;
     private final SecurityProperties securityProperties;
 
+ 
+    /**
+     * Generates a signed access token for the given user.
+     * The token includes:
+     * - subject: user id
+     * - issuer: configured issuer
+     * - aud: configured audience
+     * - role: list of Spring Security authorities
+     * - iat/exp: issued-at and expiration timestamps
+     * @param user application user
+     * @return compact JWT string
+     */
     @Override
     public String generateAccessToken(User user) {
         var userSubject = String.valueOf(user.getId());
