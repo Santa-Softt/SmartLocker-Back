@@ -1,4 +1,8 @@
 spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
   datasource:
     url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     username: sa
@@ -25,3 +29,20 @@ security:
     same-site: "Lax"
 smartlockr:
   allowed-origins: "*"
+mercadopago:
+  access-token: "APP-USER-1234...1234.."
+  webhook-secret: "some_secret_webhook"
+  webhook-url: "webhook"
+  back-url-success: "success"
+  back-url-failure: "failure"
+graphiql:
+  public-access: false
+management:
+  health:
+    # Desactivar el chequeo de salud de redis que impide los tests de integración
+    redis:
+      enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: 'info'
