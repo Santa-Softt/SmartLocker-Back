@@ -1,0 +1,12 @@
+extend type Mutation {
+    """
+    Argumentos:
+    rentalId: Proviene de ActiveRental.id
+    PaymentLink: La url a redirigir hacia mercadopago
+    """
+    createPaymentOrder(rentalId: ID!): PaymentLink!
+}
+
+type PaymentLink{
+    url: String!
+}
