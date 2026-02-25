@@ -6,13 +6,25 @@ type Mutation{
     Debe estar dentro de los límites configurados en el sistema.
     """
     initiateHold(size: LockerSize!, durationMinutes: Int!): ActiveRental!
+
+    """
+    Argumentos:
+    - el rentalId obtenido después de hacer HOLD
+    - Se obtiene un mensaje de respuesta de liberación del locker
+    """
+    cancelLockerHold(rentalId: ID!): CancelledRental!
 }
 
 type ActiveRental {
-    id: ID!
+    rentalId: ID!
     locker: Locker!
     startTime: String!
     estimatedEndTime: String!
     holdExpiresAt: String!
     isPenalized: Boolean!
+    finalPrice: String!
+}
+
+type CancelledRental{
+    message: String!
 }
