@@ -1,7 +1,7 @@
 # 🔐 SmartLockr Backend Core
 
 ![Java](https://img.shields.io/badge/Java-25-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.7-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.11-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Multistage-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Architecture-DDD_%7C_Modular_Monolith-blueviolet?style=for-the-badge)
 ![GraphQL](https://img.shields.io/badge/GraphQL-Spring-E10098?style=for-the-badge&logo=graphql&logoColor=white)
@@ -39,7 +39,7 @@ Permite a los operadores:
 5. [Configuración (vars.env)](#-configuración-varsenv)
 6. [Instalación y Ejecución](#-instalación-y-ejecución)
 7. [Documentación API](#-documentación-api)
-8. [Manejo de Errores](#%EF%B8%8F-manejo-de-errores-envelopes)
+8. [Manejo de Errores](#-manejo-de-errores)
 
 ---
 
@@ -153,7 +153,7 @@ Crea un archivo llamado `vars.env` en la raíz del proyecto. Estas variables son
 # SMARTLOCKR CONFIG (vars.env)
 # =========================================================
 
-SPRING_PROFILES_ACTIVE=dev
+SPRING_PROFILES_ACTIVE=dev/prod
 
 # ---- DATABASE ----
 # Host 'postgres_db' es el nombre del servicio en docker-compose
@@ -182,9 +182,11 @@ COOKIES_SECURE=false
 COOKIES_SAMESITE=lax
 
 # ---- MERCADO PAGO ----
-MERCADOPAGO_ACCESS_TOKEN=TEST-your-access-token
-MERCADOPAGO_PUBLIC_KEY=TEST-your-public-key
-MERCADOPAGO_WEBHOOK_SECRET=your_webhook_secret
+MERCADOPAGO_ACCESS_TOKEN=APP_USR-12345678-1234..
+MERCADOPAGO_WEBHOOK_SECRET=webhook secret from seller account (don't use your main account webhook secret, it won't work)
+MERCADOPAGO_WEBHOOK_URL=for development use cmd 'ngrok http 8080' link to proxy your backend requires to be the same url in mercadopago
+MERCADOPAGO_BACK_URL_SUCCESS=http://localhost:3000/payment/success
+MERCADOPAGO_BACK_URL_FAILURE=http://localhost:3000/payment/failure
 
 # ---- EMAIL (SMTP) ----
 MAIL_HOST=smtp.gmail.com
@@ -195,6 +197,11 @@ MAIL_PASSWORD=your_app_password
 # ---- CORS ----
 # Si es más de una ruta separadas por coma (Ej: http:localhost:3000, http:localhost:3001)
 ALLOWED_ORIGINS=http://localhost:3000
+
+# ---- REDIS ----
+SPRING_DATA_REDIS_PASSWORD=create your redis password here
+REDIS_HOST=localhost or redis if using Docker
+REDIS_PORT=6379
 ```
 
 ---
@@ -234,12 +241,12 @@ docker compose up -d
 ### 1. API de Sesión (REST)
 Endpoints encargados del flujo OAuth2 y gestión de cookies `HttpOnly`.
 
-| Método | Endpoint | Descripción |
-| :--- | :--- | :--- |
-| `GET` | `/oauth2/authorization/google` | Redirige al proveedor de identidad (Google). |
-| `GET` | `/auth/me` | Retorna información del usuario y estado de la sesión. |
-| `POST` | `/auth/refresh` | Genera un nuevo Access Token usando la cookie de Refresh Token. |
-| `POST` | `/auth/logout` | Invalida la sesión y elimina las cookies del navegador. |
+| Método | Endpoint                       | Descripción                                                     |
+|:-------|:-------------------------------|:----------------------------------------------------------------|
+| `GET`  | `/oauth2/authorization/google` | Redirige al proveedor de identidad (Google).                    |
+| `GET`  | `/auth/me`                     | Retorna información del usuario y estado de la sesión.          |
+| `POST` | `/auth/refresh`                | Genera un nuevo Access Token usando la cookie de Refresh Token. |
+| `POST` | `/auth/logout`                 | Invalida la sesión y elimina las cookies del navegador.         |
 
 ### 2. API de Negocio (GraphQL)
 Interfaz para todas las operaciones de datos y tiempo real.
@@ -248,8 +255,8 @@ Consola disponible en: `http://localhost:8080/graphiql`
 #### Ejemplo: Reservar Locker (Mutation)
 ```graphql
 mutation {
-  initiateHold(lockerId: "M-12") {
-    id
+  initiateHold(size: L, durationMinutes: 120) {
+    rentalId
     locker { label, size }
     startTime
     estimatedEndTime
@@ -269,7 +276,7 @@ subscription {
 
 ---
 
-## ⚠️ Manejo de Errores (Envelopes)
+## ⚠️ Manejo de Errores
 
 ### REST Error (JSON)
 Estructura estándar de Spring Boot para errores HTTP 4xx/5xx en endpoints REST.
@@ -302,4 +309,4 @@ Errores de validación o lógica de negocio dentro del array `errors`.
 ```
 ---
 
-© 2025 SmartLockr | SantaSoft Engineering.
+© 2026 SmartLockr | SantaSoft Engineering.
