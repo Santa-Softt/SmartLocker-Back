@@ -6,6 +6,17 @@ spring:
       pageable:
         max-page-size: 100
         default-page-size: 20
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      connect-timeout: 2000
+      repositories:
+        enabled: false
+      lettuce:
+        pool:
+          max-active: 12
+          max-idle: 8
+          min-idle: 2
   graphql:
     schema:
       file-extensions: .graphql, .graphqls, .gql, .gqls
@@ -52,5 +63,24 @@ server:
     include-stacktrace: never
 smartlockr:
   allowed-origins: ${ALLOWED_ORIGINS}
+  business:
+    max-hold-duration-seconds: 240
+    min-rental-duration: 5
+    max-rental-duration: 1440
+    rates:
+      XS: 1200
+      S: 2300
+      M: 3800
+      L: 4900
+      XL: 6150
+    quantities:
+      XS: 24
+      S: 20
+      M: 16
+      L: 10
+      XL: 8
+    penalty-percentage: 50
+    streak-discount-percentage: 10
+    streak-threshold: 7
 graphiql:
   public-access: ${DEV_GRAPHIQL}
