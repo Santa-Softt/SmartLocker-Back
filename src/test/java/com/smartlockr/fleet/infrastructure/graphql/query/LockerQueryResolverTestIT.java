@@ -5,6 +5,7 @@ import com.smartlockr.fleet.domain.enums.LockerSize;
 import com.smartlockr.fleet.domain.enums.LockerState;
 import com.smartlockr.fleet.infrastructure.graphql.dto.LockerResponse;
 import com.smartlockr.fleet.infrastructure.graphql.dto.LockerSizeSummaryResponse;
+import com.smartlockr.shared.BaseIntegrationTest;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletRequest;
@@ -43,7 +44,7 @@ import static org.mockito.BDDMockito.then;
         }
 )
 @AutoConfigureHttpGraphQlTester
-class LockerQueryResolverIT {
+class LockerQueryResolverIT extends BaseIntegrationTest {
 
     @Autowired
     private HttpGraphQlTester graphQlTester;

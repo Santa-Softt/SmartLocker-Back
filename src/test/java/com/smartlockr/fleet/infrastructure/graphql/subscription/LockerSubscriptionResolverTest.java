@@ -5,6 +5,7 @@ import com.smartlockr.fleet.application.mapper.LockerMapper;
 import com.smartlockr.fleet.domain.enums.LockerState;
 import com.smartlockr.fleet.infrastructure.messaging.LockerEventListener;
 import com.smartlockr.fleet.infrastructure.persistence.repository.dto.LockerUpdateResponse;
+import com.smartlockr.shared.BaseIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,7 @@ import static org.mockito.Mockito.when;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
-                "security.secret-b64=RXhhbXBsZVNlY3JldEtleUZvclRlc3RpbmdQdXJwb3Nlc09ubHk=",
+                "security.secret-b64=kCXyHBUc-_zMc53qbkp-Urdl0QrZcNzOiZcnZK-ztBRhKRQPSGqBevVMKXywKgH2dhcXxhKPVS-N8qSlZX5XFw==",
                 "security.issuer=smartlockr-test",
                 "security.audience=smartlockr-client",
                 "security.access-ttl-duration=1h",
@@ -41,7 +42,7 @@ import static org.mockito.Mockito.when;
                 "security.admin-email=admin@smartlockr.com"
         }
 )
-class LockerSubscriptionResolverIT {
+class LockerSubscriptionResolverIT extends BaseIntegrationTest {
 
     @LocalServerPort
     private int port;
