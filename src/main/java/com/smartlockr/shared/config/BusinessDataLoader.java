@@ -1,7 +1,6 @@
 package com.smartlockr.shared.config;
 
 import com.smartlockr.billing.infrastructure.persistence.model.entity.Rate;
-import com.smartlockr.fleet.domain.enums.LockerSize;
 import com.smartlockr.fleet.domain.enums.LockerState;
 import com.smartlockr.fleet.domain.enums.ServiceStatus;
 import com.smartlockr.fleet.infrastructure.persistence.model.entity.BusinessConfig;
@@ -11,19 +10,20 @@ import com.smartlockr.fleet.infrastructure.persistence.repository.LockerReposito
 import com.smartlockr.iam.domain.enums.Role;
 import com.smartlockr.iam.infrastructure.persistence.model.User;
 import com.smartlockr.iam.infrastructure.persistence.repository.UserRepository;
+import com.smartlockr.shared.properties.BusinessProperties;
 import com.smartlockr.shared.utils.LockerLabelUtil;
 import com.smartlockr.shared.properties.SecurityProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Component
@@ -34,6 +34,7 @@ public class BusinessDataLoader implements ApplicationRunner {
     private final BusinessConfigRepository businessConfigRepository;
     private final UserRepository userRepository;
     private final SecurityProperties securityProperties;
+    private final BusinessProperties businessProperties;
 
     @Transactional
     @Override
@@ -61,29 +62,28 @@ public class BusinessDataLoader implements ApplicationRunner {
                 .fullName("SysAdmin")
                 .role(Role.ADMIN)
                 .hasSeenWelcome(true)
+                .avatarUrl("https://lh3.googleusercontent.com/a/ACg8ocKUBzUlUjQWJRQ7H5ipskQNIavhvFbUEHLT4fUIS7fuL5N9hzM=s288-c-no")
                 .build();
         userRepository.save(admin);
         log.info("Usuario administrador creado");
     }
 
     private void createBusinessConfig() {
+        List<Rate> defaultRates = businessProperties.rates().entrySet().stream()
+                .map(entry -> new Rate(entry.getKey(), entry.getValue()))
+                .toList();
+
+
         BusinessConfig config = BusinessConfig.builder()
-                .holdDurationSeconds(120)
-                .minRentalDurationMinutes(5)
-                .maxRentalDurationMinutes(1440)
-                .penaltyPercentage(50)
-                .streakDiscountPercentage(10)
-                .streakThreshold(7)
+                .holdDurationSeconds(businessProperties.maxHoldDurationSeconds())
+                .minRentalDurationMinutes(businessProperties.minRentalDuration())
+                .maxRentalDurationMinutes(businessProperties.maxRentalDuration())
+                .penaltyPercentage(businessProperties.penaltyPercentage())
+                .streakDiscountPercentage(businessProperties.streakDiscountPercentage())
+                .streakThreshold(businessProperties.streakThreshold())
                 .serviceStatus(ServiceStatus.OPERATIONAL)
                 .build();
 
-        List<Rate> defaultRates = List.of(
-                new Rate(LockerSize.XS, new BigDecimal("1500")),
-                new Rate(LockerSize.S,  new BigDecimal("2000")),
-                new Rate(LockerSize.M,  new BigDecimal("3000")),
-                new Rate(LockerSize.L,  new BigDecimal("4000")),
-                new Rate(LockerSize.XL, new BigDecimal("5000"))
-        );
         config.setRates(defaultRates);
 
         businessConfigRepository.save(config);
@@ -91,13 +91,7 @@ public class BusinessDataLoader implements ApplicationRunner {
     }
 
     private void createInitialLockers() {
-        Map<LockerSize, Integer> inventory = Map.of(
-                LockerSize.XS, 20,
-                LockerSize.S, 24,
-                LockerSize.M, 24,
-                LockerSize.L, 12,
-                LockerSize.XL, 8
-        );
+        var inventory = businessProperties.quantities();
 
         List<Locker> lockersToCreate = new ArrayList<>();
         inventory.forEach((size, count) -> {
