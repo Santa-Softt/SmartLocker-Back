@@ -9,7 +9,8 @@ spring:
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
-      connect-timeout: 2000
+      connect-timeout: 2s
+      timeout: 1s
       repositories:
         enabled: false
       lettuce:
@@ -53,11 +54,16 @@ spring:
             issuer-uri: https://accounts.google.com
   datasource:
     hikari:
-      connection-timeout: 5000
+      connection-timeout: 20000
       maximum-pool-size: 20
 management:
   server:
     port: 9090
+    address: 127.0.0.1
+  endpoints:
+    web:
+      exposure:
+        include: health
 server:
   error:
     include-stacktrace: never

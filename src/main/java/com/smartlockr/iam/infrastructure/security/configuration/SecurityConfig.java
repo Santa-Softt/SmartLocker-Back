@@ -1,8 +1,8 @@
 package com.smartlockr.iam.infrastructure.security.configuration;
 
-import com.smartlockr.shared.properties.ApplicationProperties;
 import com.smartlockr.iam.infrastructure.security.error.handler.SecurityErrorHandler;
 import com.smartlockr.iam.infrastructure.security.oauth2.GoogleSuccessHandler;
+import com.smartlockr.shared.properties.ApplicationProperties;
 import jakarta.servlet.http.Cookie;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -32,6 +32,10 @@ public class SecurityConfig {
     @Value("${graphiql.public-access:false}")
     private boolean isPublicAccessEnabled;
 
+    /**
+     * Main security filter chain for the application.
+     * Configures JWT-based Resource Server, OAuth2 Login, and stateless session management.
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    BearerTokenResolver bearerTokenResolver,
@@ -49,9 +53,10 @@ public class SecurityConfig {
                 .logout(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> {
                     if (isPublicAccessEnabled)
-                        authorize.requestMatchers("/graphiql","/graphql").permitAll();
+                        authorize.requestMatchers("/graphiql", "/graphql").permitAll();
                     authorize.requestMatchers("/auth/refresh").permitAll()
-                            .requestMatchers("/api/v1/webhooks/mercadopago","/api/v1/dev-test/**").permitAll()
+                            .requestMatchers("/api/v1/webhooks/mercadopago", "/api/v1/dev-test/**").permitAll()
+                            .requestMatchers("/actuator/health").permitAll()
                             .anyRequest().authenticated();
                 })
 
@@ -72,6 +77,10 @@ public class SecurityConfig {
                 .build();
     }
 
+    /**
+     * Custom resolver that extracts the JWT token from a cookie named "auth_token"
+     * instead of the standard Authorization Header.
+     */
     @Bean
     public BearerTokenResolver cookieBearerTokenResolver() {
         return request -> {
@@ -80,6 +89,10 @@ public class SecurityConfig {
         };
     }
 
+    /**
+     * CORS configuration using application properties to define allowed origins,
+     * allowing standard REST methods and credentials.
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource(ApplicationProperties appProperties) {
         CorsConfiguration configuration = new CorsConfiguration();
