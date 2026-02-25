@@ -11,24 +11,30 @@ import org.springframework.stereotype.Component;
  * Este componente actúa como un adaptador de infraestructura que invoca la lógica
  * de negocio en el servicio de aplicación a intervalos fijos.
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
-@Slf4j
 public class HoldExpirationTask {
+
     private final RentalService rentalService;
 
     /**
-     * Disparador programado que invoca el proceso de negocio para limpiar los HOLDs expirados.
+     * fixedRate: Ejecución cada 30 minutos.
+     * initialDelay: Espera 10 segundos (10000ms) tras el arranque antes de la primera ejecución.
      */
-    @Scheduled(cron = "0 * * * * *")
-    public void triggerExpiredHoldsCleanup() {
-        log.info("Triggering scheduled task: Clean up expired HOLDs...");
+    @Scheduled(fixedRate = 1800000, initialDelay = 10000)
+    public void executeReconciliation() {
+        log.debug("Iniciando Job de Reconciliación de Alquileres...");
+
         try {
-            int cleanedCount = rentalService.processExpiredHolds();
-            if (cleanedCount > 0) log.info("Task finished: Processed {} expired HOLD(s).", cleanedCount);
-            log.info("Task finished: No expired HOLDs found or processed.");
+            int canceledHolds = rentalService.processExpiredHolds();
+            if (canceledHolds > 0) log.info("Se han cancelado {} HOLD(s) expirados.", canceledHolds);
+
+            int penalizedRentals = rentalService.processExpiredRentalsToPenalty();
+            if (penalizedRentals > 0) log.info("Se han aplicado {} penalizaciones nuevas.", penalizedRentals);
+
         } catch (Exception e) {
-            log.error("Error during scheduled task 'triggerExpiredHoldsCleanup'", e);
+            log.error("Fallo crítico durante el Job de Reconciliación.", e);
         }
     }
 }
