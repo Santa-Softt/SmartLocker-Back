@@ -49,9 +49,9 @@ public class SecurityConfig {
                 .logout(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> {
                     if (isPublicAccessEnabled)
-                        authorize.requestMatchers("/graphiql").permitAll();
+                        authorize.requestMatchers("/graphiql","/graphql").permitAll();
                     authorize.requestMatchers("/auth/refresh").permitAll()
-                            .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                            .requestMatchers("/api/v1/webhooks/mercadopago","/api/v1/dev-test/**").permitAll()
                             .anyRequest().authenticated();
                 })
 
