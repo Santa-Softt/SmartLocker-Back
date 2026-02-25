@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.smartlockr</groupId>
     <artifactId>smartlockr</artifactId>
-    <version>0.5.2</version>
+    <version>0.5.0</version>
     <name>SmartLockr</name>
     <description>Smart Lockers</description>
     <url/>
