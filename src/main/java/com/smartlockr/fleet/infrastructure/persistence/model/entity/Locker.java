@@ -18,7 +18,6 @@ import java.util.UUID;
 @Builder
 @Table(name = "lockers",
         indexes = {
-                @Index(name = "idx_locker_label", columnList = "label", unique = true),
                 @Index(name = "idx_locker_allocation", columnList = "size, state")})
 public class Locker {
     @UuidGenerator
