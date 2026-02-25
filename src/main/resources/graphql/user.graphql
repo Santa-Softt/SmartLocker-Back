@@ -1,0 +1,24 @@
+extend type Mutation {
+    """
+    Actualiza el perfil del usuario autenticado, también se puede usar para cambiar si leyó la guia.
+    """
+    updateUserSettings(input: UpdateUserSettingsInput!): User!
+}
+
+type User {
+    id: ID!
+    fullName: String!
+    avatarUrl: String!
+    hasSeenWelcome: Boolean!
+    receiveReceipts: Boolean
+    receivesPromotions: Boolean
+}
+
+
+input UpdateUserSettingsInput {
+    fullName: String
+    avatarUrl: String
+    hasSeenWelcome: Boolean
+    receiveReceipts: Boolean
+    receivesPromotions: Boolean
+}
