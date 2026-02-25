@@ -10,8 +10,6 @@ import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 
-import java.util.UUID;
-
 @GraphQLController
 @RequiredArgsConstructor
 public class UserMutationResolver {
@@ -20,6 +18,6 @@ public class UserMutationResolver {
 
     @MutationMapping
     public UserResponse updateUserSettings(@Argument UpdateUserSettings input, @AuthenticationPrincipal Jwt userJwt){
-        return userService.updateUserSettings(input, UUID.fromString(userJwt.getSubject()));
+        return userService.updateUserSettings(input, userJwt);
     }
 }

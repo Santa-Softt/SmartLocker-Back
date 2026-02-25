@@ -8,6 +8,8 @@ import com.smartlockr.shared.utils.UrlConstraints;
 import com.smartlockr.shared.utils.UserConstraints;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,10 +22,14 @@ public class UserService {
     private final UserMapper userMapper;
 
     @Transactional
-    public UserResponse updateUserSettings(UpdateUserSettings settings, UUID userId){
+    public UserResponse updateUserSettings(UpdateUserSettings settings, Jwt userJwt){
+        if(userJwt == null)
+            throw new AccessDeniedException("El usuario no tiene una sesión iniciada");
+
         UserConstraints.validateName(settings.fullName());
         UrlConstraints.validateUrl(settings.avatarUrl());
-        var user = userRepository.findById(userId)
+
+        var user = userRepository.findById(UUID.fromString(userJwt.getSubject()))
                 .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado"));
 
         userMapper.updateExistingUser(settings, user);

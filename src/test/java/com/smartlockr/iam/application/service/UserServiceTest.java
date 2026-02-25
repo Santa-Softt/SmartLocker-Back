@@ -9,6 +9,7 @@ import com.smartlockr.shared.BaseIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,6 +34,11 @@ class UserServiceTest extends BaseIntegrationTest {
 
         var existingUser = userRepository.saveAndFlush(user);
         var userId = existingUser.getId();
+        var userJwt = Jwt.withTokenValue("token-test")
+                .subject(String.valueOf(userId))
+                .header("alg", "none")
+                .build();
+
 
         UpdateUserSettings input = new UpdateUserSettings(
                 "Updated Name",
@@ -42,7 +48,7 @@ class UserServiceTest extends BaseIntegrationTest {
                 true);
 
         // ACT
-        UserResponse response = userService.updateUserSettings(input, userId);
+        UserResponse response = userService.updateUserSettings(input, userJwt);
 
         // ASSERT
         assertThat(response).isNotNull();
