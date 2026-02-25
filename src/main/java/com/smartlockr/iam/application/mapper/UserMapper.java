@@ -1,10 +1,9 @@
 package com.smartlockr.iam.application.mapper;
 
+import com.smartlockr.iam.application.dto.UpdateUserSettings;
 import com.smartlockr.iam.infrastructure.persistence.model.User;
 import com.smartlockr.iam.infrastructure.rest.auth.dto.UserResponse;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.Named;
+import org.mapstruct.*;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
 @Mapper(
@@ -12,11 +11,18 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
         imports = {
                 com.smartlockr.iam.infrastructure.persistence.model.UserPreferences.class,
                 com.smartlockr.iam.domain.enums.Role.class
-        }
+        },
+        // los valores que llegan como nulos los ignoramos, referencia 'updateExistingUser'
+        nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE
 )
 public interface UserMapper {
 
-    @Mapping(target = "avatarUrl", source = "user.avatarUrl")
+    @Mapping(source= "userSettings.receiveReceipts", target = "userPreferences.receiveReceipts")
+    @Mapping(source= "userSettings.receivesPromotions", target = "userPreferences.receivesPromotions")
+    void updateExistingUser(UpdateUserSettings userSettings, @MappingTarget User user);
+
+    @Mapping(source = "userPreferences.receiveReceipts", target = "receiveReceipts")
+    @Mapping(source = "userPreferences.receivesPromotions", target = "receivesPromotions")
     UserResponse toUserResponse(User user);
 
     @Mapping(target = "id", ignore = true)
@@ -28,6 +34,8 @@ public interface UserMapper {
     @Mapping(target = "suspended", constant = "false")
     @Mapping(target = "suspensionTime", ignore = true)
     @Mapping(target = "refreshTokens", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    @Mapping(target = "rentals", ignore = true)
     @Mapping(target = "userPreferences", expression = "java(new UserPreferences(true, true))")
     User toNewUser(OidcUser oidcUser);
 

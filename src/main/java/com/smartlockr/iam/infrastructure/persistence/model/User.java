@@ -44,6 +44,9 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
+    @Version
+    private Long version;
+
     @OneToMany(
             mappedBy = "user",
             cascade = CascadeType.ALL,
