@@ -1,6 +1,7 @@
 package com.smartlockr.iam.infrastructure.rest.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smartlockr.shared.BaseIntegrationTest;
 import com.smartlockr.shared.properties.SecurityProperties;
 import com.smartlockr.iam.domain.enums.Role;
 import com.smartlockr.iam.infrastructure.persistence.model.User;
@@ -25,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class AuthFlowIT {
+class AuthFlowIT extends BaseIntegrationTest {
     @LocalServerPort
     int port;
 

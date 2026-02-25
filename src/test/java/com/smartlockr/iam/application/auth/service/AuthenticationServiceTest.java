@@ -171,7 +171,12 @@ class AuthenticationServiceTest {
                     "Test User",
                     "test@email.com",
                     "avatar.png",
-                    Role.CONSUMER
+                    Role.CONSUMER,
+                    true,
+                    false,
+                    null,
+                    true,
+                    false
             );
 
             when(userRepository.findById(id)).thenReturn(Optional.of(user));
