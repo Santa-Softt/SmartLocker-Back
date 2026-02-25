@@ -1,12 +1,17 @@
 package com.smartlockr.shared.infrastructure.graphql;
 
+import com.smartlockr.billing.application.exception.InvalidMPSignatureException;
+import com.smartlockr.billing.application.exception.PaymentGatewayException;
+import com.smartlockr.billing.application.exception.RentFailedException;
 import com.smartlockr.fleet.application.exception.LockerNotFoundException;
 import com.smartlockr.fleet.application.exception.MissingBusinessConfigException;
 import com.smartlockr.fleet.application.exception.UnavailableLockerException;
+import com.smartlockr.rental.application.exception.IllegalLockerChangeStateException;
 import graphql.GraphQLError;
 import graphql.GraphqlErrorBuilder;
 import graphql.schema.DataFetchingEnvironment;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.ValidationException;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.graphql.execution.DataFetcherExceptionResolverAdapter;
@@ -26,33 +31,33 @@ import java.util.concurrent.CompletionException;
 public class GlobalGraphQlExceptionHandler extends DataFetcherExceptionResolverAdapter {
 
     private static final List<Rule> RULES = List.of(
-            Rule.of(AuthenticationException.class, ErrorType.UNAUTHORIZED, "UNAUTHORIZED", "Authentication required."),
-            Rule.of(AccessDeniedException.class, ErrorType.FORBIDDEN, "FORBIDDEN", "Access is denied."),
-            Rule.of(LockerNotFoundException.class, ErrorType.NOT_FOUND, "RESOURCE_NOT_FOUND", null),
-            Rule.of(EntityNotFoundException.class, ErrorType.NOT_FOUND, "RESOURCE_NOT_FOUND", null),
-            Rule.of(IllegalArgumentException.class, ErrorType.BAD_REQUEST, "BAD_REQUEST", null),
-            Rule.of(UnavailableLockerException.class, ErrorType.BAD_REQUEST, "LOCKER_UNAVAILABLE", null),
-            Rule.of(MissingBusinessConfigException.class, ErrorType.INTERNAL_ERROR, "BUSINESS_UNAVAILABLE",
-                    "Business configuration is missing.")
+            Rule.of(RentFailedException.class, ErrorType.BAD_REQUEST, "LOCKER_STATUS_FAILED"),
+            Rule.of(AuthenticationException.class, ErrorType.UNAUTHORIZED, "UNAUTHORIZED"),
+            Rule.of(AccessDeniedException.class, ErrorType.FORBIDDEN, "FORBIDDEN"),
+            Rule.of(LockerNotFoundException.class, ErrorType.NOT_FOUND, "RESOURCE_NOT_FOUND"),
+            Rule.of(EntityNotFoundException.class, ErrorType.NOT_FOUND, "RESOURCE_NOT_FOUND"),
+            Rule.of(IllegalArgumentException.class, ErrorType.BAD_REQUEST, "BAD_REQUEST"),
+            Rule.of(UnavailableLockerException.class, ErrorType.BAD_REQUEST, "LOCKER_UNAVAILABLE"),
+            Rule.of(MissingBusinessConfigException.class, ErrorType.INTERNAL_ERROR, "BUSINESS_UNAVAILABLE"),
+            Rule.of(PaymentGatewayException.class, ErrorType.INTERNAL_ERROR, "PAYMENT_GATEWAY_UNAVAILABLE"),
+            Rule.of(InvalidMPSignatureException.class, ErrorType.INTERNAL_ERROR, "MP_SIGNATURE_MISMATCH"),
+            Rule.of(IllegalLockerChangeStateException.class, ErrorType.BAD_REQUEST, "LOCKER_NOT_IN_HOLD"),
+            Rule.of(ValidationException.class, ErrorType.BAD_REQUEST, "USER_CONSTRAINTS_NOT_ALLOWED")
     );
 
     @Override
     protected GraphQLError resolveToSingleError(@NonNull Throwable ex, @NonNull DataFetchingEnvironment env) {
         Throwable root = unwrap(ex);
 
-        Rule rule = RULES.stream().filter(r -> r.matches(root)).findFirst().orElse(null);
+        Rule rule = RULES.stream()
+                .filter(r -> r.matches(root))
+                .findFirst().orElse(null);
+
         if (rule == null) {
             log.error("Unhandled exception. path={}", env.getExecutionStepInfo().getPath(), root);
             return error(env, ErrorType.INTERNAL_ERROR, "INTERNAL_SERVER_ERROR", "An internal server error occurred.");
         }
-
-        String fallbackMessage = (rule.type == ErrorType.INTERNAL_ERROR)
-                ? "An internal server error occurred."
-                : safeMessage(root);
-
-        String message = (rule.publicMessage != null) ? rule.publicMessage : fallbackMessage;
-
-        return error(env, rule.type, rule.code, message);
+        return error(env, rule.type, rule.code, safeMessage(root));
     }
 
     private GraphQLError error(DataFetchingEnvironment env, ErrorType type, String code, String message) {
@@ -81,12 +86,11 @@ public class GlobalGraphQlExceptionHandler extends DataFetcherExceptionResolverA
     private record Rule(
             Class<? extends Throwable> exType,
             ErrorType type,
-            String code,
-            String publicMessage
+            String code
     ) {
         boolean matches(Throwable ex) { return exType.isInstance(ex); }
-        static Rule of(Class<? extends Throwable> exType, ErrorType type, String code, String publicMessage) {
-            return new Rule(exType, type, code, publicMessage);
+        static Rule of(Class<? extends Throwable> exType, ErrorType type, String code) {
+            return new Rule(exType, type, code);
         }
     }
 }
