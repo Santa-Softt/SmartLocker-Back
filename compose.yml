@@ -5,7 +5,7 @@ services:
     ports:
       - "8080:8080"
       - "9090:9090"
-    env_file: vars.env
+    env_file: vars_docker.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -28,6 +28,26 @@ services:
       timeout: 2s
       retries: 5
       start_period: 5s
+  redis:
+    image: redis:8.4-alpine
+    container_name: smartlockr-redis
+    labels:
+      - "org.springframework.boot.ignore=true"
+    env_file: vars_docker.env
+    command: >-
+      sh -c "redis-server
+      --requirepass $$SPRING_DATA_REDIS_PASSWORD
+      --notify-keyspace-events Ex
+      --appendonly yes"
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "sh", "-c", "redis-cli -a $$SPRING_DATA_REDIS_PASSWORD ping" ]
+      interval: 3s
 
 volumes:
   db-data:
+  redis-data:
