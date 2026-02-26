@@ -18,8 +18,8 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "smartlockr.business")
 public record BusinessProperties(
         @Min(240) int maxHoldDurationSeconds,
-        @Min(5) int minRentalDuration,
-        @Min(1440) int maxRentalDuration,
+        @Min(15) int minRentalDurationMinutes,
+        @Min(1440) int maxRentalDurationMinutes,
         @Min(0) @Max(100) int penaltyPercentage,
         @Min(0) @Max(100) int streakDiscountPercentage,
         @Min(1) int streakThreshold,
