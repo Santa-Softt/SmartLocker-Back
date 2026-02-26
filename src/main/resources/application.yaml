@@ -71,20 +71,20 @@ smartlockr:
   allowed-origins: ${ALLOWED_ORIGINS}
   business:
     max-hold-duration-seconds: 240
-    min-rental-duration: 5
-    max-rental-duration: 1440
+    min-rental-duration-minutes: 15
+    max-rental-duration-minutes: 10800
     rates:
-      XS: 1200
+      XS: 1600
       S: 2300
       M: 3800
       L: 4900
       XL: 6150
     quantities:
-      XS: 24
-      S: 20
-      M: 16
-      L: 10
-      XL: 8
+      XS: 128
+      S: 80
+      M: 72
+      L: 64
+      XL: 0
     penalty-percentage: 50
     streak-discount-percentage: 10
     streak-threshold: 7
