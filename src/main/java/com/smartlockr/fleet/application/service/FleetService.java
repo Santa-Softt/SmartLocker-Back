@@ -46,15 +46,11 @@ public class FleetService {
 
         @Transactional
         public Locker reserveLockerForHold(LockerSize lockerSize) {
-
-            // Bloqueo pesimista para evitar condiciones de carrera en alta concurrencia
             var locker = lockerRepository.findAndLockOne(lockerSize, LockerState.AVAILABLE, Limit.of(1))
                     .orElseThrow(() -> new UnavailableLockerException("Currently we haven't lockers available for this time"));
 
             locker.allocate();
-
             lockerRepository.save(locker);
-
             eventPublisher.publishEvent(new LockerStateChangedEvent(locker.getId(), LockerState.HOLD));
 
             return locker;
@@ -67,16 +63,19 @@ public class FleetService {
                 return;
             }
 
-            lockerRepository.findById(lockerId).ifPresent(locker -> {
-                if (locker.getState() == LockerState.HOLD) {
-                    locker.setState(LockerState.AVAILABLE);
+            int updatedRows = lockerRepository.releaseLockerFromHold(
+                lockerId,
+                LockerState.HOLD,
+                LockerState.AVAILABLE
+            );
 
-                    lockerRepository.save(locker);
+            if (updatedRows > 0) {
+                eventPublisher.publishEvent(new LockerStateChangedEvent(lockerId, LockerState.AVAILABLE));
+                log.info("Locker {} liberado exitosamente de estado HOLD", lockerId);
+                return;
+            }
+            log.warn("Intento de liberar locker {} que no está en estado HOLD o no existe", lockerId);
 
-                    // Publicar evento desacoplado
-                    eventPublisher.publishEvent(new LockerStateChangedEvent(locker.getId(), LockerState.AVAILABLE));
-                }
-            });
         }
 
         @Transactional(readOnly = true)

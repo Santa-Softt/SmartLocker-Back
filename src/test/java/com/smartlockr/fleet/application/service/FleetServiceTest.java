@@ -142,17 +142,15 @@ class FleetServiceTest {
     void shouldReleaseLockerFromHoldToAvailable() {
         // Given
         var lockerId = UUID.randomUUID();
-        var locker = new Locker(lockerId, "L1", LockerSize.M, LockerState.HOLD, null);
 
-        given(lockerRepository.findById(lockerId))
-                .willReturn(Optional.of(locker));
+        given(lockerRepository.releaseLockerFromHold(lockerId, LockerState.HOLD, LockerState.AVAILABLE))
+                .willReturn(1);
 
         // When
         fleetService.releaseLockerFromHold(lockerId);
 
         // Then
-        assertThat(locker.getState()).isEqualTo(LockerState.AVAILABLE);
-        then(lockerRepository).should().save(locker);
+        then(lockerRepository).should().releaseLockerFromHold(lockerId, LockerState.HOLD, LockerState.AVAILABLE);
         then(eventPublisher).should().publishEvent(eventCaptor.capture());
         assertThat(eventCaptor.getValue())
                 .extracting(LockerStateChangedEvent::lockerId, LockerStateChangedEvent::newState)
@@ -163,17 +161,15 @@ class FleetServiceTest {
     void shouldNotReleaseLockerIfStateIsNotHold() {
         // Given
         var lockerId = UUID.randomUUID();
-        var locker = new Locker(lockerId, "L1", LockerSize.M, LockerState.OCCUPIED, null);
 
-        given(lockerRepository.findById(lockerId))
-                .willReturn(Optional.of(locker));
+        given(lockerRepository.releaseLockerFromHold(lockerId, LockerState.HOLD, LockerState.AVAILABLE))
+                .willReturn(0);
 
         // When
         fleetService.releaseLockerFromHold(lockerId);
 
         // Then
-        assertThat(locker.getState()).isEqualTo(LockerState.OCCUPIED); // No cambia
-        then(lockerRepository).should(times(0)).save(any(Locker.class));
+        then(lockerRepository).should().releaseLockerFromHold(lockerId, LockerState.HOLD, LockerState.AVAILABLE);
         then(eventPublisher).should(times(0)).publishEvent(any(LockerStateChangedEvent.class));
     }
 
@@ -191,13 +187,14 @@ class FleetServiceTest {
         // Given
         var nonExistentId = UUID.randomUUID();
 
-        given(lockerRepository.findById(nonExistentId))
-                .willReturn(Optional.empty());
+        given(lockerRepository.releaseLockerFromHold(nonExistentId, LockerState.HOLD, LockerState.AVAILABLE))
+                .willReturn(0);
 
         // When
         fleetService.releaseLockerFromHold(nonExistentId);
 
         // Then
+        then(lockerRepository).should().releaseLockerFromHold(nonExistentId, LockerState.HOLD, LockerState.AVAILABLE);
         verifyNoInteractions(eventPublisher);
     }
 
