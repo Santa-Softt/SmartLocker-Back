@@ -1,6 +1,6 @@
 package com.smartlockr.fleet.application.mapper;
 
-import com.smartlockr.billing.infrastructure.persistence.model.entity.Rate;
+import com.smartlockr.fleet.infrastructure.dto.RateSnapshot;
 import com.smartlockr.fleet.application.event.LockerStateChangedEvent;
 import com.smartlockr.fleet.infrastructure.graphql.dto.LockerResponse;
 import com.smartlockr.fleet.infrastructure.graphql.dto.LockerSizeSummaryResponse;
@@ -20,10 +20,16 @@ public interface LockerMapper {
     List<LockerResponse> toResponseList(List<Locker> lockers);
 
     /**
-     * Mapea un Rate y un conteo externo a un DTO de resumen.
+     * Builds a locker size summary response from a rate snapshot and current availability count.
+     *
+     * @param rate the rate snapshot containing size and hourly rate
+     * @param availableCount the number of currently available lockers of that size
+     * @return a {@link LockerSizeSummaryResponse}
      */
-    @Mapping(target = "availableCount", source = "count")
-    LockerSizeSummaryResponse toSummaryResponse(Rate rate, int count);
+    @Mapping(source = "rate.size", target = "size")
+    @Mapping(source = "rate.hourlyRate", target = "hourlyRate")
+    @Mapping(source = "availableCount", target = "availableCount")
+    LockerSizeSummaryResponse toSummaryResponse(RateSnapshot rate, int availableCount);
 
     /**
      * Mapea el evento de dominio a un DTO ligero para la suscripción de GraphQL.
