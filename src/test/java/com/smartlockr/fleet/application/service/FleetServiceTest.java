@@ -1,19 +1,20 @@
 package com.smartlockr.fleet.application.service;
 
-import com.smartlockr.billing.infrastructure.persistence.model.entity.Rate;
+import com.smartlockr.fleet.infrastructure.dto.RateSnapshot;
 import com.smartlockr.fleet.application.event.LockerStateChangedEvent;
 import com.smartlockr.fleet.application.exception.UnavailableLockerException;
 import com.smartlockr.fleet.application.mapper.LockerMapper;
 import com.smartlockr.fleet.domain.enums.LockerSize;
 import com.smartlockr.fleet.domain.enums.LockerState;
 import com.smartlockr.fleet.domain.enums.ServiceStatus;
+import com.smartlockr.fleet.infrastructure.dto.BusinessConfigSnapshot;
 import com.smartlockr.fleet.infrastructure.graphql.dto.LockerResponse;
 import com.smartlockr.fleet.infrastructure.graphql.dto.LockerSizeSummaryResponse;
-import com.smartlockr.fleet.infrastructure.persistence.model.entity.BusinessConfig;
 import com.smartlockr.fleet.infrastructure.persistence.model.entity.Locker;
 import com.smartlockr.fleet.infrastructure.persistence.repository.LockerRepository;
 import com.smartlockr.fleet.infrastructure.persistence.repository.dto.LockerCountSummary;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -32,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.BDDMockito.*;
 
+@DisplayName("FleetService")
 @ExtendWith(MockitoExtension.class)
 class FleetServiceTest {
 
@@ -58,6 +60,7 @@ class FleetServiceTest {
     }
 
     @Test
+    @DisplayName("findAvailableLockersBySize - throws IllegalArgumentException when size is null")
     void shouldThrowIllegalArgumentExceptionWhenFindingAvailableLockersByNullSize() {
         // When & Then
         assertThatThrownBy(() -> fleetService.findAvailableLockersBySize(null))
@@ -68,6 +71,7 @@ class FleetServiceTest {
     }
 
     @Test
+    @DisplayName("findAvailableLockersBySize - returns mapped LockerResponse list when lockers are found")
     void shouldReturnLockerResponsesWhenFindingAvailableLockersBySize() {
         // Given
         var size = LockerSize.M;
@@ -99,6 +103,7 @@ class FleetServiceTest {
     }
 
     @Test
+    @DisplayName("reserveLockerForHold - reserves first available locker and transitions state to HOLD")
     void shouldReserveFirstAvailableLockerWhenReservingForHold() {
         // Given
         var size = LockerSize.L;
@@ -123,6 +128,7 @@ class FleetServiceTest {
     }
 
     @Test
+    @DisplayName("reserveLockerForHold - throws UnavailableLockerException when no lockers are available")
     void shouldThrowUnavailableLockerExceptionWhenNoLockersAvailableForReservation() {
         // Given
         var size = LockerSize.S;
@@ -133,12 +139,13 @@ class FleetServiceTest {
         // When & Then
         assertThatThrownBy(() -> fleetService.reserveLockerForHold(size))
                 .isInstanceOf(UnavailableLockerException.class)
-                .hasMessage("Currently we haven't lockers available for this time");
+                .hasMessage("No hay lockers disponibles para el tamaño solicitado.");
 
         verifyNoInteractions(lockerMapper, eventPublisher);
     }
 
     @Test
+    @DisplayName("releaseLockerFromHold - releases locker and publishes AVAILABLE state event")
     void shouldReleaseLockerFromHoldToAvailable() {
         // Given
         var lockerId = UUID.randomUUID();
@@ -158,6 +165,7 @@ class FleetServiceTest {
     }
 
     @Test
+    @DisplayName("releaseLockerFromHold - does not publish event when locker is not in HOLD state")
     void shouldNotReleaseLockerIfStateIsNotHold() {
         // Given
         var lockerId = UUID.randomUUID();
@@ -174,6 +182,7 @@ class FleetServiceTest {
     }
 
     @Test
+    @DisplayName("releaseLockerFromHold - handles null locker ID without throwing")
     void shouldHandleNullLockerIdGracefullyInReleaseOperation() {
         // When
         fleetService.releaseLockerFromHold(null);
@@ -183,7 +192,8 @@ class FleetServiceTest {
     }
 
     @Test
-    void shouldReturnEmptyListWhenReleasingNonExistentLocker() {
+    @DisplayName("releaseLockerFromHold - does not publish event when locker ID does not exist")
+    void shouldNotPublishEventWhenReleasingNonExistentLocker() {
         // Given
         var nonExistentId = UUID.randomUUID();
 
@@ -199,10 +209,11 @@ class FleetServiceTest {
     }
 
     @Test
+    @DisplayName("getLockerSizeSummaries - returns summaries with correct availability counts and rates per size")
     void shouldReturnLockerSizeSummariesCorrectly() {
         // Given
-        var rateM = new Rate(LockerSize.M, BigDecimal.TEN);
-        var rateL = new Rate(LockerSize.L, BigDecimal.valueOf(15));
+        var rateM = new RateSnapshot(LockerSize.M, BigDecimal.TEN);
+        var rateL = new RateSnapshot(LockerSize.L, BigDecimal.valueOf(15));
         var rates = List.of(rateM, rateL);
 
         var countSummaryM = new LockerCountSummary(LockerSize.M, 5L);
@@ -213,15 +224,17 @@ class FleetServiceTest {
         var mockSummaryL = new LockerSizeSummaryResponse(LockerSize.L, BigDecimal.valueOf(15), 8);
         var expectedSummaries = List.of(mockSummaryM, mockSummaryL);
 
-        var mockConfig = BusinessConfig.builder()
-                .uuid(UUID.randomUUID())
-                .rates(rates)
-                .holdDurationSeconds(300)
-                .penaltyPercentage(10)
-                .streakThreshold(5)
-                .streakDiscountPercentage(5)
-                .serviceStatus(ServiceStatus.OPERATIONAL)
-                .build();
+        var mockConfig = new BusinessConfigSnapshot(
+                UUID.randomUUID(),
+                300,
+                5,
+                1440,
+                10,
+                5,
+                5,
+                ServiceStatus.OPERATIONAL,
+                rates
+        );
 
         given(businessService.getActiveBusinessConfig()).willReturn(mockConfig);
         given(lockerRepository.countByStateGroupedBySize(LockerState.AVAILABLE)).willReturn(counts);
