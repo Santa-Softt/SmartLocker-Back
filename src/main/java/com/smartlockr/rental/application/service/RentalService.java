@@ -45,6 +45,7 @@ public class RentalService {
 
     @Transactional
     public RentalResponse initiateHold(LockerSize size, String userId, Integer durationMinutes) {
+        validateUserId(userId);
 
         var config = businessService.getActiveBusinessConfig();
 
@@ -76,6 +77,17 @@ public class RentalService {
         log.info("Clave transaccional generada en Redis: {} con TTL de {} segundos", redisKey, config.getHoldDurationSeconds());
 
         return rentalMapper.toActiveRentalResponse(savedRental, holdExpiration);
+    }
+
+    private void validateUserId(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("El ID de usuario no puede ser nulo o vacío.");
+        }
+        try {
+            UUID.fromString(userId);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("El ID de usuario debe ser un UUID válido.", e);
+        }
     }
 
     private void verifyRentalDuration(Integer durationMinutes, BusinessConfig config ){
