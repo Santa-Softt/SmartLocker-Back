@@ -1,7 +1,7 @@
 package com.smartlockr.billing.infrastructure.graphql.mutation;
 
 import com.smartlockr.billing.application.service.BillingService;
-import com.smartlockr.billing.infrastructure.graphql.dto.PaymentLinkResponse;
+import com.smartlockr.billing.infrastructure.dto.PaymentLinkResponse;
 import com.smartlockr.commons.annotations.GraphQLController;
 import lombok.RequiredArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;

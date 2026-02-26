@@ -10,10 +10,10 @@ import com.mercadopago.resources.payment.Payment;
 import com.mercadopago.resources.preference.Preference;
 import com.smartlockr.billing.application.exception.PaymentGatewayException;
 import com.smartlockr.billing.application.exception.RentFailedException;
-import com.smartlockr.billing.infrastructure.graphql.dto.PaymentLinkResponse;
+import com.smartlockr.billing.infrastructure.dto.PaymentLinkResponse;
 import com.smartlockr.fleet.application.service.BusinessService;
 import com.smartlockr.fleet.domain.enums.LockerState;
-import com.smartlockr.fleet.infrastructure.persistence.model.entity.BusinessConfig;
+import com.smartlockr.fleet.infrastructure.dto.BusinessConfigSnapshot;
 import com.smartlockr.fleet.infrastructure.persistence.model.entity.Locker;
 import com.smartlockr.rental.domain.enums.RentalState;
 import com.smartlockr.rental.infrastructure.persistence.entity.model.Rental;
@@ -47,6 +47,7 @@ public class BillingService {
     private static final String CURRENCY_ARS = "ARS";
     private static final String PAYMENT_APPROVED = "approved";
     private static final String HOLD_KEY_PREFIX = "hold:rental:";
+    private static final String ACTIVE_KEY_PREFIX = "active:rental:";
 
     @Transactional
     public PaymentLinkResponse createPaymentOrder(UUID rentalId) {
@@ -54,17 +55,17 @@ public class BillingService {
                 .orElseThrow(() -> new IllegalArgumentException("Rental no encontrado: " + rentalId));
 
         validateRentalStatus(rental);
-        var config = businessService.getActiveBusinessConfig();
+
+        BusinessConfigSnapshot config = businessService.getActiveBusinessConfig();
 
         Instant now = Instant.now();
-        Instant originalHoldExpiration = rental.getStartTime().plusSeconds(config.getHoldDurationSeconds());
+        Instant originalHoldExpiration = rental.getStartTime().plusSeconds(config.holdDurationSeconds());
         long netPurchasedMinutes = Duration.between(originalHoldExpiration, rental.getEstimatedEndTime()).toMinutes();
 
         rental.setStartTime(now);
         rental.setEstimatedEndTime(now.plus(netPurchasedMinutes, ChronoUnit.MINUTES));
 
         BigDecimal establishedPrice = rental.getFinalCost();
-
         rentalRepository.save(rental);
 
         try {
@@ -85,6 +86,8 @@ public class BillingService {
 
     @Transactional
     public void processPaymentNotification(String paymentId) {
+        validatePaymentId(paymentId);
+
         String lockKey = "payment_processed:" + paymentId;
         Boolean isFirstTime = redisTemplate.opsForValue()
                 .setIfAbsent(lockKey, "PROCESSING", Duration.ofHours(24));
@@ -98,20 +101,77 @@ public class BillingService {
             Payment payment = paymentClient.get(Long.parseLong(paymentId));
 
             if (PAYMENT_APPROVED.equalsIgnoreCase(payment.getStatus())) {
-                UUID rentalId = UUID.fromString(payment.getExternalReference());
-
-                handleApprovedPayment(rentalId, payment);
-
-                redisTemplate.opsForValue().set(lockKey, "PROCESSED", Duration.ofHours(24));
+                processApprovedPayment(lockKey, paymentId, payment);
             } else {
                 redisTemplate.delete(lockKey);
                 log.info("[MERCADOPAGO] Pago {} con estado: {}. Bloqueo liberado.", paymentId, payment.getStatus());
             }
 
+        } catch (NumberFormatException e) {
+            redisTemplate.delete(lockKey);
+            log.error("[MERCADOPAGO] ID de pago inválido {}: {}", paymentId, e.getMessage());
+            throw new PaymentGatewayException("ID de pago inválido", e);
         } catch (Exception e) {
             redisTemplate.delete(lockKey);
             log.error("Error crítico procesando notificación {}: {}", paymentId, e.getMessage());
             throw new PaymentGatewayException("Notification processing failed", e);
+        }
+    }
+
+    /**
+     * Processes a payment confirmed as approved by MercadoPago.
+     * Validates the external reference, resolves the rental ID, and delegates
+     * to the approval handler. Marks the lock key as processed on success.
+     *
+     * @param lockKey the Redis idempotency key for this payment
+     * @param paymentId the MercadoPago payment ID
+     * @param payment the approved payment object
+     */
+    private void processApprovedPayment(String lockKey, String paymentId, Payment payment) {
+        String externalReference = payment.getExternalReference();
+        if (externalReference == null || externalReference.isBlank()) {
+            log.error("[MERCADOPAGO] Pago {} sin external_reference", paymentId);
+            redisTemplate.delete(lockKey);
+            return;
+        }
+
+        UUID rentalId = parseRentalId(lockKey, paymentId, externalReference);
+        if (rentalId == null) {
+            return;
+        }
+
+        handleApprovedPayment(rentalId, payment);
+        redisTemplate.opsForValue().set(lockKey, "PROCESSED", Duration.ofHours(24));
+    }
+
+    /**
+     * Parses the external reference string into a rental UUID.
+     * Releases the idempotency lock and returns null if the reference is not a valid UUID.
+     *
+     * @param lockKey the Redis idempotency key to release on failure
+     * @param paymentId the MercadoPago payment ID for logging context
+     * @param externalReference the raw external reference string from MercadoPago
+     * @return the parsed {@link UUID}, or null if parsing fails
+     */
+    private UUID parseRentalId(String lockKey, String paymentId, String externalReference) {
+        try {
+            return UUID.fromString(externalReference);
+        } catch (IllegalArgumentException _) {
+            log.error("[MERCADOPAGO] External reference inválida {}: {}", paymentId, externalReference);
+            redisTemplate.delete(lockKey);
+            return null;
+        }
+    }
+
+    private void validatePaymentId(String paymentId) {
+        if (paymentId == null || paymentId.isBlank()) {
+            throw new PaymentGatewayException("Payment ID es requerido");
+        }
+        if (paymentId.length() > 20) {
+            throw new PaymentGatewayException("Payment ID demasiado largo");
+        }
+        if (!paymentId.matches("\\d+")) {
+            throw new PaymentGatewayException("Payment ID debe contener solo dígitos");
         }
     }
 
@@ -149,10 +209,10 @@ public class BillingService {
 
             redisTemplate.delete(HOLD_KEY_PREFIX + rentalId);
 
-            long secondsUntilExpiration = Duration.between(Instant.now(), rental.getEstimatedEndTime()).getSeconds();
-            if (secondsUntilExpiration <= 0) secondsUntilExpiration = 1;
+            long rentalExpirationTTL = Duration.between(Instant.now(), rental.getEstimatedEndTime()).getSeconds();
+            if (rentalExpirationTTL <= 0) rentalExpirationTTL = 1;
 
-            redisTemplate.opsForValue().set("active:rental:" + rental.getId(), "1", secondsUntilExpiration, TimeUnit.SECONDS);
+            redisTemplate.opsForValue().set(ACTIVE_KEY_PREFIX + rental.getId(), "1", rentalExpirationTTL, TimeUnit.SECONDS);
 
             log.info("Pago confirmado exitosamente para Rental: {}. Clave de expiración en Redis eliminada y timer activo iniciado.", rentalId);
 
@@ -165,7 +225,7 @@ public class BillingService {
         }
     }
 
-    private PreferenceRequest buildPreferenceRequest(Rental rental, BigDecimal amount, BusinessConfig config) {
+    private PreferenceRequest buildPreferenceRequest(Rental rental, BigDecimal amount, BusinessConfigSnapshot config) {
         PreferenceItemRequest item = PreferenceItemRequest.builder()
                 .title("Alquiler Locker - Tamaño " + rental.getLocker().getSize())
                 .quantity(1)
@@ -179,7 +239,7 @@ public class BillingService {
                 .notificationUrl(mpProperties.webhookUrl())
                 .binaryMode(true)
                 .expirationDateTo(Instant.now()
-                        .plusSeconds(config.getHoldDurationSeconds())
+                        .plusSeconds(config.holdDurationSeconds())
                         .atOffset(ZoneOffset.UTC))
                 .backUrls(PreferenceBackUrlsRequest.builder()
                         .success(mpProperties.backUrlSuccess())
