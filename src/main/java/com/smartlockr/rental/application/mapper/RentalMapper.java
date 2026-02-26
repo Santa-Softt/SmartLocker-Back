@@ -18,6 +18,8 @@ public interface RentalMapper {
     @Mapping(target = "locker", source = "rental.locker")
     @Mapping(target = "finalPrice", source = "rental.finalCost")
     @Mapping(target = "rentalId", source = "rental.id")
+    @Mapping(target = "locker.hourlyRate", ignore = true)
+    @Mapping(target = "isPenalized", ignore = true)
     RentalResponse toActiveRentalResponse(Rental rental, Instant holdExpiration);
 
     @Mapping(target = "id", ignore = true)
