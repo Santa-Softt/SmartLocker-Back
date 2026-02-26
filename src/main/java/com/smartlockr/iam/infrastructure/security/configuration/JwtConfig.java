@@ -38,11 +38,7 @@ public class JwtConfig {
      */
     @Bean
     public SecretKey jwtSecretKey(SecurityProperties securityProperties) {
-        String b64Key = securityProperties.secretB64();
-        if (b64Key == null || b64Key.isEmpty()) {
-            throw new IllegalArgumentException("La clave JWT_SECRET no está configurada.");
-        }
-        byte[] keyBytes = Base64.getUrlDecoder().decode(b64Key);
+        byte[] keyBytes = Base64.getUrlDecoder().decode(securityProperties.secretB64());
         if (keyBytes.length < 64) {
             throw new WeakKeyException(
                     "La clave proporcionada tiene " + (keyBytes.length * 8) +
@@ -64,7 +60,7 @@ public class JwtConfig {
     public OAuth2TokenValidator<Jwt> jwtTokenValidator(SecurityProperties securityProperties) {
         OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(securityProperties.issuer());
         OAuth2TokenValidator<Jwt> withAudience = token -> {
-            if (token.getAudience().contains((securityProperties.audience()))) {
+            if (token.getAudience().contains(securityProperties.audience())) {
                 return OAuth2TokenValidatorResult.success();
             }
             return OAuth2TokenValidatorResult.failure(new OAuth2Error(
