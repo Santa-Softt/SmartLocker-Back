@@ -4,7 +4,7 @@ import com.smartlockr.billing.application.service.PricingService;
 import com.smartlockr.fleet.application.service.BusinessService;
 import com.smartlockr.fleet.application.service.FleetService;
 import com.smartlockr.fleet.domain.enums.LockerSize;
-import com.smartlockr.fleet.infrastructure.persistence.model.entity.BusinessConfig;
+import com.smartlockr.fleet.infrastructure.dto.BusinessConfigSnapshot;
 import com.smartlockr.fleet.infrastructure.persistence.model.entity.Locker;
 import com.smartlockr.iam.infrastructure.persistence.model.User;
 import com.smartlockr.iam.infrastructure.persistence.repository.UserRepository;
@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 public class RentalService {
+
     private final RentalRepository rentalRepository;
     private final UserRepository userRepository;
     private final FleetService fleetService;
@@ -43,11 +44,23 @@ public class RentalService {
 
     private static final String HOLD_KEY_PREFIX = "hold:rental:";
 
+    /**
+     * Initiates a hold on an available locker of the requested size for the given user.
+     * Creates a pending rental, calculates the final price, and registers a Redis TTL key
+     * to handle hold expiration automatically.
+     *
+     * @param size the requested locker size
+     * @param userId the UUID of the requesting user as a string
+     * @param durationMinutes the desired rental duration in minutes
+     * @return a {@link RentalResponse} containing rental details and hold expiration time
+     * @throws IllegalArgumentException if the user ID is invalid or the duration is out of bounds
+     * @throws UsernameNotFoundException if no user is found for the given ID
+     */
     @Transactional
-    public RentalResponse initiateHold(LockerSize size, String userId, Integer durationMinutes) {
+    public RentalResponse initiateHold(LockerSize size, String userId, int durationMinutes) {
         validateUserId(userId);
 
-        var config = businessService.getActiveBusinessConfig();
+        BusinessConfigSnapshot config = businessService.getActiveBusinessConfig();
 
         verifyRentalDuration(durationMinutes, config);
 
@@ -57,7 +70,7 @@ public class RentalService {
         Locker lockedLocker = fleetService.reserveLockerForHold(size);
 
         Instant now = Instant.now();
-        Instant holdExpiration = now.plusSeconds(config.getHoldDurationSeconds());
+        Instant holdExpiration = now.plusSeconds(config.holdDurationSeconds());
         Instant serviceExpiration = holdExpiration.plus(durationMinutes, ChronoUnit.MINUTES);
 
         BigDecimal finalPrice = pricingService.calculateTotalPrice(size, durationMinutes);
@@ -73,41 +86,29 @@ public class RentalService {
         Rental savedRental = rentalRepository.save(rental);
 
         String redisKey = HOLD_KEY_PREFIX + savedRental.getId().toString();
-        redisTemplate.opsForValue().set(redisKey, "PENDING", config.getHoldDurationSeconds(), TimeUnit.SECONDS);
-        log.info("Clave transaccional generada en Redis: {} con TTL de {} segundos", redisKey, config.getHoldDurationSeconds());
+        redisTemplate.opsForValue().set(redisKey, "PENDING", config.holdDurationSeconds(), TimeUnit.SECONDS);
+        log.info("Clave transaccional generada en Redis: {} con TTL de {} segundos", redisKey, config.holdDurationSeconds());
 
         return rentalMapper.toActiveRentalResponse(savedRental, holdExpiration);
     }
 
-    private void validateUserId(String userId) {
-        if (userId == null || userId.isBlank()) {
-            throw new IllegalArgumentException("El ID de usuario no puede ser nulo o vacío.");
-        }
-        try {
-            UUID.fromString(userId);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("El ID de usuario debe ser un UUID válido.", e);
-        }
-    }
-
-    private void verifyRentalDuration(Integer durationMinutes, BusinessConfig config ){
-        if (durationMinutes == null || durationMinutes <= 0) {
-            throw new IllegalArgumentException("La duración debe ser mayor a 0 minutos.");
-        }
-
-        if (durationMinutes < config.getMinRentalDurationMinutes() ||
-                durationMinutes > config.getMaxRentalDurationMinutes()) {
-            throw new IllegalArgumentException("Duración no permitida por configuración.");
-        }
-    }
-
+    /**
+     * Cancels an active hold initiated by the user.
+     * Releases the locker and removes the Redis TTL key.
+     *
+     * @param rentalId the UUID of the rental to cancel
+     * @return a {@link RentalHoldResponse} confirming the cancellation
+     * @throws IllegalArgumentException if no rental is found for the given ID
+     * @throws IllegalLockerChangeStateException if the rental is not in HOLD state
+     */
     @Transactional
     public RentalHoldResponse cancelUserHold(UUID rentalId) {
         Rental rental = rentalRepository.findById(rentalId)
                 .orElseThrow(() -> new IllegalArgumentException("Alquiler no encontrado para ID: " + rentalId));
 
         if (rental.getState() != RentalState.HOLD) {
-            throw new IllegalLockerChangeStateException("Solo se pueden cancelar operaciones en estado de retención (HOLD).");
+            throw new IllegalLockerChangeStateException(
+                    "Solo se pueden cancelar operaciones en estado de retención (HOLD).");
         }
 
         rental.setState(RentalState.CANCELLED);
@@ -121,31 +122,37 @@ public class RentalService {
     }
 
     /**
-     * Se ejecuta cuando Redis notifica que el tiempo de espera (HOLD) ha expirado.
-     * Cancela la reserva y libera el locker para que otros puedan usarlo.
+     * Triggered when Redis notifies that the hold TTL has expired.
+     * Cancels the rental and releases the locker if it is still in HOLD state.
      *
-     * @param rentalId El UUID del alquiler en estado HOLD.
+     * @param rentalId the UUID of the rental in HOLD state
      */
     @Transactional
     public void expireSystemHold(UUID rentalId) {
         rentalRepository.findById(rentalId).ifPresent(rental -> {
             if (rental.getState() == RentalState.HOLD) {
                 log.info("Redis: Expirando HOLD para Rental {}", rentalId);
-
                 rental.setState(RentalState.CANCELLED);
                 rentalRepository.save(rental);
-
                 fleetService.releaseLockerFromHold(rental.getLocker().getId());
             }
         });
     }
 
+    /**
+     * Reconciliation job fallback that cancels any rentals still in HOLD state
+     * beyond the configured hold duration. Handles cases where Redis expiration
+     * events may have been missed.
+     *
+     * @return the number of rentals expired and cancelled
+     */
     @Transactional
     public int processExpiredHolds() {
-        BusinessConfig config = businessService.getActiveBusinessConfig();
-        Instant expirationThreshold = Instant.now().minusSeconds(config.getHoldDurationSeconds());
+        BusinessConfigSnapshot config = businessService.getActiveBusinessConfig();
+        Instant expirationThreshold = Instant.now().minusSeconds(config.holdDurationSeconds());
 
-        List<Rental> expiredRentals = rentalRepository.findAllByStateAndStartTimeBefore(RentalState.HOLD, expirationThreshold);
+        List<Rental> expiredRentals = rentalRepository.findAllByStateAndStartTimeBefore(
+                RentalState.HOLD, expirationThreshold);
 
         if (expiredRentals.isEmpty()) {
             return 0;
@@ -156,35 +163,39 @@ public class RentalService {
             fleetService.releaseLockerFromHold(rental.getLocker().getId());
         }
 
+        log.info("Reconciliación: {} holds expirados cancelados.", expiredRentals.size());
         return expiredRentals.size();
     }
 
     /**
-     * Se ejecuta cuando Redis notifica que el tiempo de uso (ACTIVE) ha finalizado.
-     * Cambia el estado a PENALIZED para bloquear acciones y marcar deuda.
+     * Triggered when Redis notifies that the active rental TTL has expired.
+     * Transitions the rental to PENALIZED state to block further actions and mark outstanding debt.
      *
-     * @param rentalId El UUID del alquiler activo.
+     * @param rentalId the UUID of the active rental
      */
     @Transactional
     public void applyPenaltyToRental(UUID rentalId) {
         rentalRepository.findById(rentalId).ifPresent(rental -> {
-
             if (rental.getState() == RentalState.ACTIVE) {
                 log.info("Redis: Aplicando penalización a Rental {}", rentalId);
-
                 rental.setState(RentalState.PENALIZED);
                 rental.setPenalized(true);
-
                 rentalRepository.save(rental);
             }
         });
     }
 
+    /**
+     * Reconciliation job fallback that penalizes any rentals still in ACTIVE state
+     * past their estimated end time. Handles cases where Redis expiration events
+     * may have been missed.
+     *
+     * @return the number of rentals transitioned to PENALIZED state
+     */
     @Transactional
     public int processExpiredRentalsToPenalty() {
         List<Rental> expiredRentals = rentalRepository.findAllByStateAndEstimatedEndTimeBefore(
-                RentalState.ACTIVE, Instant.now()
-        );
+                RentalState.ACTIVE, Instant.now());
 
         if (expiredRentals.isEmpty()) {
             return 0;
@@ -196,6 +207,44 @@ public class RentalService {
             log.info("Alquiler finalizado por job de reconciliación, aplicando PENALIDAD: {}", rental.getId());
         }
 
+        log.info("Reconciliación: {} alquileres penalizados.", expiredRentals.size());
         return expiredRentals.size();
+    }
+
+    /**
+     * Validates that the user ID is non-blank and represents a valid UUID.
+     *
+     * @param userId the user ID string to validate
+     * @throws IllegalArgumentException if the ID is null, blank, or not a valid UUID
+     */
+    private void validateUserId(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("El ID de usuario no puede ser nulo o vacío.");
+        }
+        try {
+            UUID.fromString(userId);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("El ID de usuario debe ser un UUID válido.", e);
+        }
+    }
+
+    /**
+     * Validates that the requested duration falls within the configured rental bounds.
+     *
+     * @param durationMinutes the requested duration in minutes
+     * @param config the active business configuration snapshot
+     * @throws IllegalArgumentException if the duration is zero, negative, or outside configured bounds
+     */
+    private void verifyRentalDuration(int durationMinutes, BusinessConfigSnapshot config) {
+        if (durationMinutes <= 0) {
+            throw new IllegalArgumentException("La duración debe ser mayor a 0 minutos.");
+        }
+
+        if (durationMinutes < config.minRentalDurationMinutes() ||
+                durationMinutes > config.maxRentalDurationMinutes()) {
+            throw new IllegalArgumentException(
+                    "Duración fuera del rango permitido: [%d, %d] minutos."
+                            .formatted(config.minRentalDurationMinutes(), config.maxRentalDurationMinutes()));
+        }
     }
 }

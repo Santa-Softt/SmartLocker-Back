@@ -21,7 +21,8 @@ import java.util.UUID;
         indexes = {
                 @Index(name = "idx_rental_user_id", columnList = "user_id"),
                 @Index(name = "idx_rental_locker_id", columnList = "locker_id"),
-                @Index(name = "idx_rental_state", columnList = "state")
+                @Index(name = "idx_rental_state_end_time", columnList = "state, estimated_end_time"),
+                @Index(name = "idx_rental_state_start_time", columnList = "state, start_time")
         })
 public class Rental {
     @UuidGenerator
