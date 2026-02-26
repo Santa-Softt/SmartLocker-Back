@@ -33,10 +33,10 @@ public class User {
     private String avatarUrl;
 
     @Column(nullable = false)
-    private boolean hasSeenWelcome = false;
+    private boolean hasSeenWelcome;
 
     @Column(nullable = false)
-    private boolean suspended = false;
+    private boolean suspended;
 
     private Instant suspensionTime;
 
@@ -53,6 +53,7 @@ public class User {
             orphanRemoval = true,
             fetch = FetchType.LAZY
     )
+    @Builder.Default
     private Set<RefreshToken> refreshTokens = new HashSet<>();
 
     @OneToMany(
