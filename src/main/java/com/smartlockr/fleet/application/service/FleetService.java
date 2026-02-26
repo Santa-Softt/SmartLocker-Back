@@ -1,14 +1,14 @@
 package com.smartlockr.fleet.application.service;
 
-import com.smartlockr.billing.infrastructure.persistence.model.entity.Rate;
+import com.smartlockr.fleet.infrastructure.dto.RateSnapshot;
 import com.smartlockr.fleet.application.event.LockerStateChangedEvent;
 import com.smartlockr.fleet.application.exception.UnavailableLockerException;
-import com.smartlockr.fleet.infrastructure.graphql.dto.LockerResponse;
 import com.smartlockr.fleet.application.mapper.LockerMapper;
 import com.smartlockr.fleet.domain.enums.LockerSize;
 import com.smartlockr.fleet.domain.enums.LockerState;
+import com.smartlockr.fleet.infrastructure.dto.BusinessConfigSnapshot;
+import com.smartlockr.fleet.infrastructure.graphql.dto.LockerResponse;
 import com.smartlockr.fleet.infrastructure.graphql.dto.LockerSizeSummaryResponse;
-import com.smartlockr.fleet.infrastructure.persistence.model.entity.BusinessConfig;
 import com.smartlockr.fleet.infrastructure.persistence.model.entity.Locker;
 import com.smartlockr.fleet.infrastructure.persistence.repository.LockerRepository;
 import com.smartlockr.fleet.infrastructure.persistence.repository.dto.LockerCountSummary;
@@ -25,75 +25,108 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Service responsible for managing locker fleet operations,
+ * including availability queries, hold reservations, and release flows.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class FleetService {
 
-        private final LockerRepository lockerRepository;
-        private final LockerMapper lockerMapper;
-        private final BusinessService businessService;
-        private final ApplicationEventPublisher eventPublisher;
+    private final LockerRepository lockerRepository;
+    private final LockerMapper lockerMapper;
+    private final BusinessService businessService;
+    private final ApplicationEventPublisher eventPublisher;
 
-        @Transactional(readOnly = true)
-        public List<LockerResponse> findAvailableLockersBySize(LockerSize size) {
-            if (size == null) {
-                throw new IllegalArgumentException("Locker size cannot be null.");
-            }
-            List<Locker> lockersFound = lockerRepository.findBySizeAndStateOrderByLabelAsc(size, LockerState.AVAILABLE);
-            return lockerMapper.toResponseList(lockersFound);
+    /**
+     * Returns all available lockers matching the given size, ordered by label.
+     *
+     * @param size the locker size to filter by
+     * @return list of {@link LockerResponse} for available lockers of the given size
+     * @throws IllegalArgumentException if size is null
+     */
+    @Transactional(readOnly = true)
+    public List<LockerResponse> findAvailableLockersBySize(LockerSize size) {
+        if (size == null) {
+            throw new IllegalArgumentException("Locker size cannot be null.");
+        }
+        List<Locker> lockersFound = lockerRepository.findBySizeAndStateOrderByLabelAsc(size, LockerState.AVAILABLE);
+        return lockerMapper.toResponseList(lockersFound);
+    }
+
+    /**
+     * Reserves an available locker of the given size for a hold, using a pessimistic lock
+     * to prevent concurrent allocation conflicts.
+     *
+     * @param lockerSize the requested locker size
+     * @return the reserved {@link Locker} in HOLD state
+     * @throws UnavailableLockerException if no locker of the requested size is available
+     */
+    @Transactional
+    public Locker reserveLockerForHold(LockerSize lockerSize) {
+        Locker locker = lockerRepository.findAndLockOne(lockerSize, LockerState.AVAILABLE, Limit.of(1))
+                .orElseThrow(() -> new UnavailableLockerException(
+                        "No hay lockers disponibles para el tamaño solicitado."));
+
+        locker.allocate();
+        lockerRepository.save(locker);
+        eventPublisher.publishEvent(new LockerStateChangedEvent(locker.getId(), LockerState.HOLD));
+
+        return locker;
+    }
+
+    /**
+     * Releases a locker from HOLD state back to AVAILABLE.
+     * Logs a warning if the locker is not in HOLD state or does not exist.
+     *
+     * @param lockerId the UUID of the locker to release
+     */
+    @Transactional
+    public void releaseLockerFromHold(UUID lockerId) {
+        if (lockerId == null) {
+            log.warn("Attempted to release a locker with a null ID.");
+            return;
         }
 
-        @Transactional
-        public Locker reserveLockerForHold(LockerSize lockerSize) {
-            var locker = lockerRepository.findAndLockOne(lockerSize, LockerState.AVAILABLE, Limit.of(1))
-                    .orElseThrow(() -> new UnavailableLockerException("Currently we haven't lockers available for this time"));
-
-            locker.allocate();
-            lockerRepository.save(locker);
-            eventPublisher.publishEvent(new LockerStateChangedEvent(locker.getId(), LockerState.HOLD));
-
-            return locker;
-        }
-
-        @Transactional
-        public void releaseLockerFromHold(UUID lockerId) {
-            if (lockerId == null) {
-                log.warn("Attempted to release a locker with a null ID.");
-                return;
-            }
-
-            int updatedRows = lockerRepository.releaseLockerFromHold(
+        int updatedRows = lockerRepository.releaseLockerFromHold(
                 lockerId,
                 LockerState.HOLD,
                 LockerState.AVAILABLE
-            );
+        );
 
-            if (updatedRows > 0) {
-                eventPublisher.publishEvent(new LockerStateChangedEvent(lockerId, LockerState.AVAILABLE));
-                log.info("Locker {} liberado exitosamente de estado HOLD", lockerId);
-                return;
-            }
-            log.warn("Intento de liberar locker {} que no está en estado HOLD o no existe", lockerId);
-
+        if (updatedRows > 0) {
+            eventPublisher.publishEvent(new LockerStateChangedEvent(lockerId, LockerState.AVAILABLE));
+            log.info("Locker {} liberado exitosamente de estado HOLD.", lockerId);
+            return;
         }
 
-        @Transactional(readOnly = true)
-        public List<LockerSizeSummaryResponse> getLockerSizeSummaries() {
-            BusinessConfig config = businessService.getActiveBusinessConfig();
-            List<Rate> rates = config.getRates();
-
-            List<LockerCountSummary> counts = lockerRepository.countByStateGroupedBySize(LockerState.AVAILABLE);
-
-            Map<LockerSize, Long> availabilityMap = counts.stream()
-                    .collect(Collectors.toMap(LockerCountSummary::size, LockerCountSummary::count));
-
-            return rates.stream()
-                    .map(rate -> lockerMapper.toSummaryResponse(rate,
-                            availabilityMap.getOrDefault(rate.getSize(), 0L).intValue())
-                    )
-                    .sorted(Comparator.comparing(LockerSizeSummaryResponse::size))
-                    .toList();
-        }
+        log.warn("Intento de liberar locker {} que no está en estado HOLD o no existe.", lockerId);
     }
+
+    /**
+     * Returns a summary of locker availability and pricing per size,
+     * based on the active business configuration and current locker counts.
+     *
+     * @return list of {@link LockerSizeSummaryResponse} sorted by size
+     */
+    @Transactional(readOnly = true)
+    public List<LockerSizeSummaryResponse> getLockerSizeSummaries() {
+        BusinessConfigSnapshot config = businessService.getActiveBusinessConfig();
+        List<RateSnapshot> rates = config.rates();
+
+        List<LockerCountSummary> counts = lockerRepository.countByStateGroupedBySize(LockerState.AVAILABLE);
+
+        Map<LockerSize, Long> availabilityMap = counts.stream()
+                .collect(Collectors.toMap(LockerCountSummary::size, LockerCountSummary::count));
+
+        return rates.stream()
+                .map(rate -> lockerMapper.toSummaryResponse(
+                        rate,
+                        availabilityMap.getOrDefault(rate.size(), 0L).intValue())
+                )
+                .sorted(Comparator.comparing(LockerSizeSummaryResponse::size))
+                .toList();
+    }
+}
 
