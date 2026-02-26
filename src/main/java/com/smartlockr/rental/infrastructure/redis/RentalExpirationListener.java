@@ -52,7 +52,6 @@ public class RentalExpirationListener {
     }
 
     private void handleActiveExpiration(String key) {
-        // 1. Extraer el UUID
         String rentalIdStr = key.replace(ACTIVE_KEY_PREFIX, "").trim();
 
         try {
