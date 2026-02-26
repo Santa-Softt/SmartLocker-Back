@@ -1,4 +1,8 @@
-# 🔐 SmartLockr Backend Core
+# SmartLockr Backend Core
+
+![Project Status](https://img.shields.io/badge/status-in%20development-CC3E2B?style=flat-square&labelColor=24292E&logo=github&logoColor=white)
+![Docker Image Version](https://img.shields.io/docker/v/santasoft/smartlockr-back?sort=date&style=flat-square&labelColor=24292E&color=000000&logo=docker&logoColor=white)
+
 
 ![Java](https://img.shields.io/badge/Java-25-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.11-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white)
