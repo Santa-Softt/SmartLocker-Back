@@ -55,7 +55,7 @@ public class SecurityConfig {
                     if (isPublicAccessEnabled)
                         authorize.requestMatchers("/graphiql", "/graphql").permitAll();
                     authorize.requestMatchers("/auth/refresh").permitAll()
-                            .requestMatchers("/api/v1/webhooks/mercadopago", "/api/v1/dev-test/**").permitAll()
+                            .requestMatchers("/api/v1/webhooks/mercadopago").permitAll()
                             .requestMatchers("/actuator/health").permitAll()
                             .anyRequest().authenticated();
                 })

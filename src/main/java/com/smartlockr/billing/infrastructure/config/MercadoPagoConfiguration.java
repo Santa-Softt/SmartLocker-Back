@@ -10,9 +10,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.concurrent.TimeUnit;
+
 /**
- * Configuración de infraestructura para la integración con Mercado Pago.
- * Registra los clientes del SDK como Beans de Spring para permitir su inyección.
+ * Configuration for MercadoPago SDK integration.
+ * Initializes the SDK with access token and configures HTTP timeouts
+ * to prevent connection hangs during payment operations.
  */
 @Slf4j
 @Configuration
@@ -22,17 +25,22 @@ public class MercadoPagoConfiguration {
     private final MercadoPagoProperties properties;
 
     /**
-     * Inicializa el SDK globalmente con el Access Token al arrancar la aplicación.
+     * Initializes MercadoPago SDK with access token and connection timeouts.
+     * Connection timeout: 10 seconds for establishing connections.
+     * Socket timeout: 30 seconds for waiting on data during requests.
      */
     @PostConstruct
     public void init() {
         MercadoPagoConfig.setAccessToken(properties.accessToken());
-        log.info("SDK de MercadoPago inicializado correctamente");
+        MercadoPagoConfig.setConnectionTimeout((int) TimeUnit.SECONDS.toMillis(10));
+        MercadoPagoConfig.setSocketTimeout((int) TimeUnit.SECONDS.toMillis(30));
+        log.info("MercadoPago SDK initialized with timeouts: connection=10s, socket=30s");
     }
 
     /**
-     * Crea y expone el cliente para gestionar Preferencias (Checkouts).
-     * @return una nueva instancia de PreferenceClient gestionada por Spring.
+     * Creates a PreferenceClient bean for managing checkout preferences.
+     *
+     * @return a new PreferenceClient instance
      */
     @Bean
     public PreferenceClient preferenceClient() {
@@ -40,8 +48,9 @@ public class MercadoPagoConfiguration {
     }
 
     /**
-     * Crea y expone el cliente para consultar Pagos.
-     * @return una nueva instancia de PaymentClient gestionada por Spring.
+     * Creates a PaymentClient bean for querying payment information.
+     *
+     * @return a new PaymentClient instance
      */
     @Bean
     public PaymentClient paymentClient() {
