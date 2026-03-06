@@ -15,9 +15,11 @@ import com.smartlockr.rental.infrastructure.graphql.dto.RentalHoldResponse;
 import com.smartlockr.rental.infrastructure.graphql.dto.RentalResponse;
 import com.smartlockr.rental.infrastructure.persistence.entity.model.Rental;
 import com.smartlockr.rental.infrastructure.persistence.repository.RentalRepository;
+import com.smartlockr.shared.infrastructure.redis.RedisHealthMonitor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +43,7 @@ public class RentalService {
     private final PricingService pricingService;
     private final RentalMapper rentalMapper;
     private final StringRedisTemplate redisTemplate;
+    private final RedisHealthMonitor redisHealthMonitor;
 
     private static final String HOLD_KEY_PREFIX = "hold:rental:";
 
@@ -65,7 +68,7 @@ public class RentalService {
         verifyRentalDuration(durationMinutes, config);
 
         User user = userRepository.findById(UUID.fromString(userId))
-                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         Locker lockedLocker = fleetService.reserveLockerForHold(size);
 
@@ -86,39 +89,61 @@ public class RentalService {
         Rental savedRental = rentalRepository.save(rental);
 
         String redisKey = HOLD_KEY_PREFIX + savedRental.getId().toString();
-        redisTemplate.opsForValue().set(redisKey, "PENDING", config.holdDurationSeconds(), TimeUnit.SECONDS);
-        log.info("Clave transaccional generada en Redis: {} con TTL de {} segundos", redisKey, config.holdDurationSeconds());
+        if (redisHealthMonitor.isRedisAvailable()) {
+            try {
+                redisTemplate.opsForValue().set(redisKey, "PENDING", config.holdDurationSeconds(), TimeUnit.SECONDS);
+                log.info("[REDIS] HOLD key registered: {} with TTL of {} seconds", redisKey, config.holdDurationSeconds());
+            } catch (Exception e) {
+                log.warn("[REDIS] Failed to register TTL for rental {}. " +
+                         "Reconciliation scheduler will handle expiration.", savedRental.getId(), e);
+            }
+        } else {
+            log.info("[REDIS] Redis unavailable. Rental {} will be managed by reconciliation scheduler.", savedRental.getId());
+        }
 
         return rentalMapper.toActiveRentalResponse(savedRental, holdExpiration);
     }
 
     /**
-     * Cancels an active hold initiated by the user.
+     * Cancels an active hold initiated by the authenticated user.
+     * Validates that the rental belongs to the requesting user before cancellation.
      * Releases the locker and removes the Redis TTL key.
      *
      * @param rentalId the UUID of the rental to cancel
-     * @return a {@link RentalHoldResponse} confirming the cancellation
+     * @param userId the UUID of the authenticated user requesting the cancellation
+     * @return a RentalHoldResponse confirming the cancellation
      * @throws IllegalArgumentException if no rental is found for the given ID
      * @throws IllegalLockerChangeStateException if the rental is not in HOLD state
+     * @throws AccessDeniedException if the user does not own the rental
      */
     @Transactional
-    public RentalHoldResponse cancelUserHold(UUID rentalId) {
+    public RentalHoldResponse cancelUserHold(UUID rentalId, UUID userId) {
         Rental rental = rentalRepository.findById(rentalId)
-                .orElseThrow(() -> new IllegalArgumentException("Alquiler no encontrado para ID: " + rentalId));
+                .orElseThrow(() -> new IllegalArgumentException("Rental not found for ID: " + rentalId));
 
         if (rental.getState() != RentalState.HOLD) {
             throw new IllegalLockerChangeStateException(
-                    "Solo se pueden cancelar operaciones en estado de retención (HOLD).");
+                    "Only operations in hold state (HOLD) can be canceled.");
+        }
+
+        if (!rental.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("User does not own this rental");
         }
 
         rental.setState(RentalState.CANCELLED);
         fleetService.releaseLockerFromHold(rental.getLocker().getId());
         rentalRepository.save(rental);
 
-        redisTemplate.delete(HOLD_KEY_PREFIX + rentalId);
-        log.info("Hold cancelado por el usuario. Clave de Redis eliminada preventivamente para: {}", rentalId);
+        if (redisHealthMonitor.isRedisAvailable()) {
+            try {
+                redisTemplate.delete(HOLD_KEY_PREFIX + rentalId);
+                log.info("[REDIS] Hold canceled by user. Redis key proactively deleted for: {}", rentalId);
+            } catch (Exception e) {
+                log.warn("[REDIS] Could not delete hold key for {} but rental was canceled in DB.", rentalId, e);
+            }
+        }
 
-        return new RentalHoldResponse("Locker liberado exitosamente");
+        return new RentalHoldResponse("Locker released successfully");
     }
 
     /**
@@ -131,7 +156,7 @@ public class RentalService {
     public void expireSystemHold(UUID rentalId) {
         rentalRepository.findById(rentalId).ifPresent(rental -> {
             if (rental.getState() == RentalState.HOLD) {
-                log.info("Redis: Expirando HOLD para Rental {}", rentalId);
+                log.info("Redis: Expiring HOLD for Rental {}", rentalId);
                 rental.setState(RentalState.CANCELLED);
                 rentalRepository.save(rental);
                 fleetService.releaseLockerFromHold(rental.getLocker().getId());
@@ -140,9 +165,10 @@ public class RentalService {
     }
 
     /**
-     * Reconciliation job fallback that cancels any rentals still in HOLD state
-     * beyond the configured hold duration. Handles cases where Redis expiration
-     * events may have been missed.
+     * Reconciliation job that cancels any rentals still in HOLD state
+     * beyond the configured hold duration.
+     * This is the primary expiration detection mechanism, running every 5 seconds
+     * (or 2 seconds when Redis is unavailable).
      *
      * @return the number of rentals expired and cancelled
      */
@@ -163,7 +189,7 @@ public class RentalService {
             fleetService.releaseLockerFromHold(rental.getLocker().getId());
         }
 
-        log.info("Reconciliación: {} holds expirados cancelados.", expiredRentals.size());
+        log.info("Reconciliation: {} expired holds canceled.", expiredRentals.size());
         return expiredRentals.size();
     }
 
@@ -177,7 +203,7 @@ public class RentalService {
     public void applyPenaltyToRental(UUID rentalId) {
         rentalRepository.findById(rentalId).ifPresent(rental -> {
             if (rental.getState() == RentalState.ACTIVE) {
-                log.info("Redis: Aplicando penalización a Rental {}", rentalId);
+                log.info("Redis: Applying penalty to Rental {}", rentalId);
                 rental.setState(RentalState.PENALIZED);
                 rental.setPenalized(true);
                 rentalRepository.save(rental);
@@ -186,9 +212,10 @@ public class RentalService {
     }
 
     /**
-     * Reconciliation job fallback that penalizes any rentals still in ACTIVE state
-     * past their estimated end time. Handles cases where Redis expiration events
-     * may have been missed.
+     * Reconciliation job that penalizes any rentals still in ACTIVE state
+     * past their estimated end time.
+     * This is the primary expiration detection mechanism, running every 5 seconds
+     * (or 2 seconds when Redis is unavailable).
      *
      * @return the number of rentals transitioned to PENALIZED state
      */
@@ -204,10 +231,10 @@ public class RentalService {
         for (Rental rental : expiredRentals) {
             rental.setState(RentalState.PENALIZED);
             rental.setPenalized(true);
-            log.info("Alquiler finalizado por job de reconciliación, aplicando PENALIDAD: {}", rental.getId());
+            log.info("Rental expired, applying penalty: {}", rental.getId());
         }
 
-        log.info("Reconciliación: {} alquileres penalizados.", expiredRentals.size());
+        log.info("Reconciliation: {} rentals penalized.", expiredRentals.size());
         return expiredRentals.size();
     }
 
