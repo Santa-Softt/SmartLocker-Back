@@ -50,8 +50,8 @@ public class GoogleSuccessHandler implements AuthenticationSuccessHandler {
                                         Authentication authentication) throws IOException {
         if (!(authentication.getPrincipal() instanceof OidcUser oidcUser))
             throw new AuthenticationException("No se pudo encontrar una instancia OpenID");
-        var isEmailVerified = oidcUser.getEmailVerified();
-        if(Boolean.FALSE.equals(isEmailVerified))
+        
+        if (Boolean.FALSE.equals(oidcUser.getEmailVerified()))
             throw new AuthenticationException("El email debe estar verificado para registrarse");
 
         var user = authenticationService.findOrCreateUser(oidcUser);
