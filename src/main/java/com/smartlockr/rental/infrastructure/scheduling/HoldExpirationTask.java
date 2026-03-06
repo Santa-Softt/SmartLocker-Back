@@ -9,11 +9,13 @@ import org.springframework.stereotype.Component;
 
 /**
  * Scheduled infrastructure adapter responsible for managing the expiration of
- * temporary holds and the penalisation of overdue active rentals.
- * * This component serves as a fallback mechanism for the primary Redis Keyspace
- * Notifications system. It ensures eventual consistency in the database by
- * catching events that might have been lost due to service downtime or network
- * partitions.
+ * temporary holds and the penalization of overdue active rentals.
+ * This component serves as the primary mechanism for expiration detection,
+ * using database-backed polling with dynamic intervals:
+ * - 5 seconds when Redis is operational
+ * - 2 seconds when Redis is unavailable (aggressive fallback)
+ * The database is the source of truth for rental expiration times.
+ * Redis keyspace events are used as an optimization when available.
  */
 @Slf4j
 @Component
@@ -24,31 +26,41 @@ public class HoldExpirationTask {
     private final RentalService rentalService;
 
     /**
-     * Executes the reconciliation process at fixed intervals.
-     * * Execution Strategy:
-     * - fixedRate = 60000: Runs every 60 seconds (1 minute) to minimise
-     * revenue leakage caused by lockers being falsely occupied.
-     * - initialDelay = 10000: Defers the first execution by 10 seconds
+     * Executes the reconciliation process at dynamic intervals based on Redis health.
+     * Execution Strategy:
+     * - fixedRateString: Uses dynamic interval from RedisHealthMonitor
+     *   - 5 seconds if Redis is operational (normal mode)
+     *   - 2 seconds if Redis is down (aggressive fallback mode)
+     * - initialDelay = 5000: Defers the first execution by 5 seconds
      * after application startup to allow connection pools to warm up.
-     * * The underlying database queries are backed by composite indexes, ensuring
+     * The underlying database queries are backed by composite indexes, ensuring
      * that this frequent polling does not degrade relational database performance.
+     * Expected latency:
+     * - Maximum 5 seconds for expiration detection (Redis UP)
+     * - Maximum 2 seconds for expiration detection (Redis DOWN)
      */
-    @Scheduled(fixedRate = 60000, initialDelay = 10000)
+    @Scheduled(fixedRateString = "#{@redisHealthMonitor.reconciliationInterval}", initialDelay = 5000)
     public void executeReconciliation() {
-        log.debug("Iniciando Job de limpieza de HOLDs y ACTIVEs expirados");
+        long startTime = System.currentTimeMillis();
+
         try {
             int canceledHolds = rentalService.processExpiredHolds();
-            if (canceledHolds > 0) {
-                log.info("Se han cancelado {} HOLD(s) expirados.", canceledHolds);
+            int penalizedRentals = rentalService.processExpiredRentalsToPenalty();
+
+            long executionTime = System.currentTimeMillis() - startTime;
+
+            if (canceledHolds > 0 || penalizedRentals > 0) {
+                log.info("⏱️ Reconciliation completed in {}ms: {} holds canceled, {} penalties applied.", 
+                         executionTime, canceledHolds, penalizedRentals);
             }
 
-            int penalizedRentals = rentalService.processExpiredRentalsToPenalty();
-            if (penalizedRentals > 0) {
-                log.info("Se han aplicado {} penalizaciones nuevas.", penalizedRentals);
+            if (executionTime > 1000) {
+                log.warn("⚠️ Reconciliation took {}ms (threshold: 1000ms). Consider checking database performance.", executionTime);
             }
 
         } catch (Exception e) {
-            log.error("Fallo crítico durante el Job de Reconciliación.", e);
+            long executionTime = System.currentTimeMillis() - startTime;
+            log.error("❌ Critical failure during Reconciliation Job (execution time: {}ms).", executionTime, e);
         }
     }
 }

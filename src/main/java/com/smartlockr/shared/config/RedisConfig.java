@@ -21,6 +21,12 @@ import java.time.Duration;
  * Redis-related Spring configuration.
  * Registers beans required to listen to Redis key expiration events.
  * This configuration is disabled for the "test" profile.
+ * Redis is REQUIRED for:
+ * - Real-time expiration notifications via keyspace events
+ * - Distributed caching (BusinessConfig, etc.)
+ * - Idempotency controls for payment processing
+ * If Redis becomes unavailable at runtime, the system gracefully degrades
+ * to database-based reconciliation with more frequent polling (2s interval).
  */
 @Slf4j
 @Configuration

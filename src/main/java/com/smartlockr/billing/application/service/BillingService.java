@@ -19,9 +19,11 @@ import com.smartlockr.rental.domain.enums.RentalState;
 import com.smartlockr.rental.infrastructure.persistence.entity.model.Rental;
 import com.smartlockr.rental.infrastructure.persistence.repository.RentalRepository;
 import com.smartlockr.shared.properties.MercadoPagoProperties;
+import com.smartlockr.shared.properties.RedisProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,15 +46,32 @@ public class BillingService {
     private final PaymentClient paymentClient;
     private final PreferenceClient preferenceClient;
     private final StringRedisTemplate redisTemplate;
+    private final RedisProperties redisProperties;
     private static final String CURRENCY_ARS = "ARS";
     private static final String PAYMENT_APPROVED = "approved";
     private static final String HOLD_KEY_PREFIX = "hold:rental:";
     private static final String ACTIVE_KEY_PREFIX = "active:rental:";
 
+    /**
+     * Creates a payment order for an existing rental in HOLD state.
+     * Validates that the rental belongs to the authenticated user.
+     *
+     * @param rentalId the UUID of the rental to create a payment order for
+     * @param userId the UUID of the authenticated user requesting the payment order
+     * @return a PaymentLinkResponse containing the payment link URL
+     * @throws IllegalArgumentException if the rental is not found
+     * @throws RentFailedException if the rental is not in HOLD state
+     * @throws AccessDeniedException if the user does not own the rental
+     * @throws PaymentGatewayException if communication with payment gateway fails
+     */
     @Transactional
-    public PaymentLinkResponse createPaymentOrder(UUID rentalId) {
+    public PaymentLinkResponse createPaymentOrder(UUID rentalId, UUID userId) {
         Rental rental = rentalRepository.findById(rentalId)
                 .orElseThrow(() -> new IllegalArgumentException("Rental no encontrado: " + rentalId));
+
+        if (!rental.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("User does not own this rental");
+        }
 
         validateRentalStatus(rental);
 
@@ -89,8 +108,7 @@ public class BillingService {
         validatePaymentId(paymentId);
 
         String lockKey = "payment_processed:" + paymentId;
-        Boolean isFirstTime = redisTemplate.opsForValue()
-                .setIfAbsent(lockKey, "PROCESSING", Duration.ofHours(24));
+        Boolean isFirstTime = tryAcquireIdempotencyLock(lockKey);
 
         if (Boolean.FALSE.equals(isFirstTime)) {
             log.info("[MERCADOPAGO] Notificación {} ya en curso o finalizada.", paymentId);
@@ -103,18 +121,56 @@ public class BillingService {
             if (PAYMENT_APPROVED.equalsIgnoreCase(payment.getStatus())) {
                 processApprovedPayment(lockKey, paymentId, payment);
             } else {
-                redisTemplate.delete(lockKey);
+                safeDeleteLockKey(lockKey);
                 log.info("[MERCADOPAGO] Pago {} con estado: {}. Bloqueo liberado.", paymentId, payment.getStatus());
             }
 
         } catch (NumberFormatException e) {
-            redisTemplate.delete(lockKey);
+            safeDeleteLockKey(lockKey);
             log.error("[MERCADOPAGO] ID de pago inválido {}: {}", paymentId, e.getMessage());
             throw new PaymentGatewayException("ID de pago inválido", e);
         } catch (Exception e) {
-            redisTemplate.delete(lockKey);
+            safeDeleteLockKey(lockKey);
             log.error("Error crítico procesando notificación {}: {}", paymentId, e.getMessage());
             throw new PaymentGatewayException("Notification processing failed", e);
+        }
+    }
+
+    /**
+     * Attempts to acquire the idempotency lock in Redis.
+     * If Redis is unavailable, logs a warning and returns true to allow processing to continue.
+     * Duplicate payments are prevented by the rental state check in handleApprovedPayment().
+     *
+     * @param lockKey the Redis key for idempotency control
+     * @return true if this is the first processing attempt, false if already being processed
+     */
+    private Boolean tryAcquireIdempotencyLock(String lockKey) {
+        try {
+            Boolean result = redisTemplate.opsForValue()
+                    .setIfAbsent(lockKey, "PROCESSING", Duration.ofHours(redisProperties.idempotencyLockTtlHours()));
+            if (result == null) {
+                log.warn("[REDIS] Idempotency lock returned null for {}. Processing with caution.", lockKey);
+                return true;
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("[REDIS] Failed to acquire idempotency lock for {}. " +
+                     "Continuing without lock - duplicate prevention will rely on rental state check.", lockKey, e);
+            return true;
+        }
+    }
+
+    /**
+     * Safely deletes the idempotency lock key, ignoring Redis failures.
+     * Used for cleanup when payment processing fails or is rejected.
+     *
+     * @param lockKey the Redis key to delete
+     */
+    private void safeDeleteLockKey(String lockKey) {
+        try {
+            redisTemplate.delete(lockKey);
+        } catch (Exception e) {
+            log.warn("[REDIS] Failed to delete lock key {}. Key may expire naturally after 24h.", lockKey, e);
         }
     }
 
@@ -131,7 +187,7 @@ public class BillingService {
         String externalReference = payment.getExternalReference();
         if (externalReference == null || externalReference.isBlank()) {
             log.error("[MERCADOPAGO] Pago {} sin external_reference", paymentId);
-            redisTemplate.delete(lockKey);
+            safeDeleteLockKey(lockKey);
             return;
         }
 
@@ -141,7 +197,20 @@ public class BillingService {
         }
 
         handleApprovedPayment(rentalId, payment);
-        redisTemplate.opsForValue().set(lockKey, "PROCESSED", Duration.ofHours(24));
+        safeUpdateLockKeyToProcessed(lockKey);
+    }
+
+    /**
+     * Safely updates the lock key status to PROCESSED, ignoring Redis failures.
+     *
+     * @param lockKey the Redis key to update
+     */
+    private void safeUpdateLockKeyToProcessed(String lockKey) {
+        try {
+            redisTemplate.opsForValue().set(lockKey, "PROCESSED", Duration.ofHours(redisProperties.idempotencyLockTtlHours()));
+        } catch (Exception e) {
+            log.warn("[REDIS] Failed to update lock key {} to PROCESSED. Key will expire naturally.", lockKey, e);
+        }
     }
 
     /**
@@ -158,7 +227,7 @@ public class BillingService {
             return UUID.fromString(externalReference);
         } catch (IllegalArgumentException _) {
             log.error("[MERCADOPAGO] External reference inválida {}: {}", paymentId, externalReference);
-            redisTemplate.delete(lockKey);
+            safeDeleteLockKey(lockKey);
             return null;
         }
     }
@@ -179,12 +248,10 @@ public class BillingService {
         rentalRepository.findById(rentalId).ifPresentOrElse(rental -> {
 
             if (rental.getState() == RentalState.ACTIVE) {
-                log.warn("------------------------------------------------------------------");
                 log.warn("[PAGO EXCEDENTE DETECTADO]");
                 log.warn("El Rental {} ya se encuentra ACTIVE.", rentalId);
                 log.warn("Payment ID: {} | Monto: {} {}", payment.getId(), payment.getTransactionAmount(), payment.getCurrencyId());
                 log.warn("Acción requerida: CONCILIACIÓN MANUAL.");
-                log.warn("------------------------------------------------------------------");
                 return;
             }
 
@@ -207,12 +274,16 @@ public class BillingService {
 
             rentalRepository.save(rental);
 
-            redisTemplate.delete(HOLD_KEY_PREFIX + rentalId);
+            safeDeleteLockKey(HOLD_KEY_PREFIX + rentalId);
 
             long rentalExpirationTTL = Duration.between(Instant.now(), rental.getEstimatedEndTime()).getSeconds();
             if (rentalExpirationTTL <= 0) rentalExpirationTTL = 1;
 
-            redisTemplate.opsForValue().set(ACTIVE_KEY_PREFIX + rental.getId(), "1", rentalExpirationTTL, TimeUnit.SECONDS);
+            try {
+                redisTemplate.opsForValue().set(ACTIVE_KEY_PREFIX + rental.getId(), "1", rentalExpirationTTL, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.warn("[REDIS] Failed to set active rental timer for {}. Expiration will be managed by reconciliation.", rentalId, e);
+            }
 
             log.info("Pago confirmado exitosamente para Rental: {}. Clave de expiración en Redis eliminada y timer activo iniciado.", rentalId);
 

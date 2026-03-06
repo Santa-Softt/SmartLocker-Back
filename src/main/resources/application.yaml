@@ -92,3 +92,12 @@ smartlockr:
     streak-threshold: 7
 graphiql:
   public-access: ${DEV_GRAPHIQL}
+redis:
+  idempotency-lock-ttl-hours: 24
+
+async:
+  webhook:
+    core-pool-size: 4
+    max-pool-size: 8
+    queue-capacity: 100
+    await-termination-seconds: 60
