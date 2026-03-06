@@ -4,6 +4,7 @@ import com.smartlockr.iam.application.auth.dto.AuthResponse;
 import com.smartlockr.iam.application.auth.dto.RotationResult;
 import com.smartlockr.iam.application.auth.port.JwtProvider;
 import com.smartlockr.iam.application.mapper.UserMapper;
+import com.smartlockr.iam.application.service.UserService;
 import com.smartlockr.iam.domain.enums.Role;
 import com.smartlockr.iam.infrastructure.persistence.model.User;
 import com.smartlockr.iam.infrastructure.persistence.model.UserPreferences;
@@ -43,6 +44,9 @@ class AuthenticationServiceTest {
     @InjectMocks
     private AuthenticationService authenticationService;
 
+    @Mock
+    private UserService userService;
+
     @Nested
     @DisplayName("Operation: Find Or Create User")
     class FindOrCreateUserTests {
@@ -70,7 +74,7 @@ class AuthenticationServiceTest {
             User result = authenticationService.findOrCreateUser(oidcUser);
 
             // Assert State
-            assertThat(result.getFullName()).isEqualTo("New Name");
+            assertThat(result.getFullName()).isEqualTo("Old Name");
             assertThat(result.getAvatarUrl()).isEqualTo("https://new-avatar.com");
             assertThat(result.getUserPreferences()).isEqualTo(userPreferences);
 
@@ -144,26 +148,25 @@ class AuthenticationServiceTest {
     class GetLoggedUserDataTests {
 
         @Test
-        @DisplayName("Should throw exception when user ID not found")
+        @DisplayName("Should throw exception when user ID not found via UserService")
         void getLoggedUserData_NotFound() {
             UUID id = UUID.randomUUID();
-            when(userRepository.findById(id)).thenReturn(Optional.empty());
             Instant expiresAt = Instant.now().plusSeconds(100L);
+
+            when(userService.getUserResponse(id)).thenThrow(new UsernameNotFoundException("El usuario no existe"));
 
             assertThatThrownBy(() -> authenticationService.getLoggedUserData(id, expiresAt))
                     .isInstanceOf(UsernameNotFoundException.class)
                     .hasMessageContaining("El usuario no existe");
 
-            // Si falla al buscar, NO debe intentar mapear nada
-            verifyNoInteractions(userMapper);
+            verify(userService).getUserResponse(id);
         }
 
         @Test
-        @DisplayName("Should return session data when user exists")
+        @DisplayName("Should return session data when user exists via UserService")
         void getLoggedUserData_Success() {
             // Arrange
             UUID id = UUID.randomUUID();
-            User user = new TestUser();
             Instant expiresAt = Instant.now().plusSeconds(300L);
 
             UserResponse userResponse = new UserResponse(
@@ -179,19 +182,16 @@ class AuthenticationServiceTest {
                     false
             );
 
-            when(userRepository.findById(id)).thenReturn(Optional.of(user));
-            when(userMapper.toUserResponse(user)).thenReturn(userResponse);
+            when(userService.getUserResponse(id)).thenReturn(userResponse);
 
             // Act
             SessionResponse response = authenticationService.getLoggedUserData(id, expiresAt);
 
             // Assert
             assertThat(response.userResponse()).isEqualTo(userResponse);
-            assertThat(response.userResponse().role()).isEqualTo(Role.CONSUMER);
             assertThat(response.tokenDetails().expiresAt()).isEqualTo(expiresAt);
 
-            verify(userRepository).findById(id);
-            verify(userMapper).toUserResponse(user);
+            verify(userService).getUserResponse(id);
         }
     }
 

@@ -4,14 +4,16 @@ import com.smartlockr.iam.application.auth.dto.AuthResponse;
 import com.smartlockr.iam.application.auth.dto.RotationResult;
 import com.smartlockr.iam.application.auth.port.JwtProvider;
 import com.smartlockr.iam.application.mapper.UserMapper;
-import com.smartlockr.iam.domain.enums.Role;
+import com.smartlockr.iam.application.service.UserService;
 import com.smartlockr.iam.infrastructure.persistence.model.User;
 import com.smartlockr.iam.infrastructure.persistence.repository.UserRepository;
 import com.smartlockr.iam.infrastructure.rest.auth.dto.SessionResponse;
 import com.smartlockr.iam.infrastructure.rest.auth.dto.TokenDetails;
 import com.smartlockr.iam.infrastructure.security.factory.CookieFactory;
+import com.smartlockr.shared.utils.CacheNames;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
@@ -36,6 +38,7 @@ public class AuthenticationService {
     private final CookieFactory cookieFactory;
     private final JwtProvider jwtProvider;
     private final RefreshTokenService refreshTokenService;
+    private final UserService userService;
 
     /**
      * Finds an existing user by email or creates a new user from OIDC authentication.
@@ -46,6 +49,7 @@ public class AuthenticationService {
      * @return the existing or newly created user
      */
     @Transactional
+    @CacheEvict(value = CacheNames.USER_CACHE, key = "#result.id")
     public User findOrCreateUser(OidcUser oidcUser) {
         return userRepository.findByEmail(oidcUser.getEmail())
                 .map(user -> updateUserInfo(user, oidcUser))
@@ -54,9 +58,6 @@ public class AuthenticationService {
 
     private User updateUserInfo(User user, OidcUser oidcUser) {
         user.setAvatarUrl(oidcUser.getPicture());
-        if (user.getRole() != Role.ADMIN) {
-            user.setAvatarUrl(oidcUser.getPicture());
-        }
         return user;
     }
 
@@ -79,10 +80,7 @@ public class AuthenticationService {
      * @throws UsernameNotFoundException if the user does not exist
      */
     public SessionResponse getLoggedUserData(@NotNull UUID id, Instant expiresAt) {
-        return userRepository.findById(id)
-                .map(userMapper::toUserResponse)
-                .map(userResponse -> new SessionResponse(userResponse, new TokenDetails(expiresAt)))
-                .orElseThrow(() -> new UsernameNotFoundException("El usuario no existe"));
+        return new SessionResponse(userService.getUserResponse(id), new TokenDetails(expiresAt));
     }
 
     /**
