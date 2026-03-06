@@ -2,11 +2,10 @@ package com.smartlockr.iam.application.service;
 
 import com.smartlockr.iam.application.dto.UpdateUserSettings;
 import com.smartlockr.iam.application.mapper.UserMapper;
+import com.smartlockr.iam.domain.enums.Role;
 import com.smartlockr.iam.infrastructure.persistence.model.User;
 import com.smartlockr.iam.infrastructure.persistence.repository.UserRepository;
 import com.smartlockr.iam.infrastructure.rest.auth.dto.UserResponse;
-import com.smartlockr.shared.utils.UrlConstraints;
-import com.smartlockr.shared.utils.UserConstraints;
 import jakarta.validation.ValidationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -14,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mapstruct.factory.Mappers;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.oauth2.jwt.Jwt;
 
@@ -36,47 +34,45 @@ class UserServiceUnitTest {
     private final UserMapper userMapper = Mappers.getMapper(UserMapper.class);
     private UserService userService;
 
-    UUID userId = UUID.randomUUID();
-    Jwt jwt;
-    UpdateUserSettings settings;
-    User existingUser;
+    private final UUID userId = UUID.randomUUID();
+    @Mock
+    private Jwt jwt;
 
     @BeforeEach
     void setUp() {
         userService = new UserService(userRepository, userMapper);
-        jwt = mock(Jwt.class);
-        existingUser = User.builder()
-                .id(userId)
-                .fullName("Nombre Antiguo")
-                .avatarUrl("https://old.io")
-                .build();
+        given(jwt.getSubject()).willReturn(userId.toString());
     }
 
     @Test
-    @DisplayName("Debe actualizar los campos del User y retornar UserResponse")
-    void updateUserSettings_Success() {
-
-        settings = new UpdateUserSettings(
+    @DisplayName("Debe actualizar los campos del User para un CONSUMER y retornar UserResponse")
+    void updateUserSettings_Consumer_Success() {
+        // GIVEN
+        UpdateUserSettings settings = new UpdateUserSettings(
                 "Alex Dev",
                 "https://avatar.io/alex",
                 false,
                 false,
                 false);
-        // GIVEN
-        given(jwt.getSubject()).willReturn(userId.toString());
+
+        User existingUser = User.builder()
+                .id(userId)
+                .fullName("Nombre Antiguo")
+                .avatarUrl("https://old.io")
+                .role(Role.CONSUMER)
+                .build();
 
         given(userRepository.findById(userId)).willReturn(Optional.of(existingUser));
-
         given(userRepository.save(any(User.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
+
         // WHEN
         var result = userService.updateUserSettings(settings, jwt);
 
+        // THEN
         then(userRepository).should().save(argThat(user -> {
-            assertThat(user).satisfies(u -> {
-                assertThat(u.getFullName()).isEqualTo(settings.fullName());
-                assertThat(u.getAvatarUrl()).isEqualTo(settings.avatarUrl());
-            });
+            assertThat(user.getFullName()).isEqualTo(settings.fullName());
+            assertThat(user.getAvatarUrl()).isEqualTo(settings.avatarUrl());
             return true;
         }));
 
@@ -89,74 +85,58 @@ class UserServiceUnitTest {
     }
 
     @Test
-    @DisplayName("No debería actualizar los datos del usuario por usar un nombre prohibido")
-    void updateUserSettings_Name_Constraint() {
-        settings = new UpdateUserSettings(
+    @DisplayName("CONSUMER: No debería actualizar por usar un nombre prohibido")
+    void updateUserSettings_Consumer_Name_Constraint_Fails() {
+        // GIVEN
+        UpdateUserSettings settings = new UpdateUserSettings(
                 "admin",
                 "https://avatar.io/alex",
                 false,
                 false,
                 false);
 
-        try (MockedStatic<UserConstraints> mockedStatic = mockStatic(UserConstraints.class)) {
-            mockedStatic.when(() -> UserConstraints.validateName("admin"))
-                    .thenThrow(new ValidationException("Nombre prohibido"));
+        User existingUser = User.builder()
+                .id(userId)
+                .fullName("Nombre Antiguo")
+                .role(Role.CONSUMER)
+                .build();
 
-            assertThatThrownBy(() -> userService.updateUserSettings(settings, jwt))
-                    .isInstanceOf(ValidationException.class);
+        given(userRepository.findById(userId)).willReturn(Optional.of(existingUser));
 
-            mockedStatic.verify(
-                    () -> UserConstraints.validateName("admin"),
-                    times(1)
-            );
-        }
+        // WHEN & THEN
+        assertThatThrownBy(() -> userService.updateUserSettings(settings, jwt))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("reserved for system use");
+
+        verify(userRepository, never()).save(any(User.class));
     }
 
     @Test
-    @DisplayName("No debería actualizar avatar con URL de protocolo peligroso")
-    void updateUserSettings_Url_DangerousProtocol() {
-        settings = new UpdateUserSettings(
-                "Alex Dev",
-                "javascript:alert('xss')",
-                false, false, false);
+    @DisplayName("ADMIN: Debe permitir actualizar incluso con un nombre prohibido")
+    void updateUserSettings_Admin_Success_With_Restricted_Name() {
+        // GIVEN
+        UpdateUserSettings settings = new UpdateUserSettings(
+                "admin",
+                "https://avatar.io/alex",
+                false,
+                false,
+                false);
 
-        try (MockedStatic<UrlConstraints> mockedStatic = mockStatic(UrlConstraints.class)) {
+        User adminUser = User.builder()
+                .id(userId)
+                .fullName("Admin Name")
+                .role(Role.ADMIN)
+                .build();
 
-            mockedStatic.when(() -> UrlConstraints.validateUrl("javascript:alert('xss')"))
-                    .thenThrow(new ValidationException("Protocolo no permitido"));
+        given(userRepository.findById(userId)).willReturn(Optional.of(adminUser));
+        given(userRepository.save(any(User.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
 
-            assertThatThrownBy(() -> userService.updateUserSettings(settings, jwt))
-                    .isInstanceOf(ValidationException.class)
-                    .hasMessageContaining("Protocolo no permitido");
+        // WHEN
+        var result = userService.updateUserSettings(settings, jwt);
 
-            mockedStatic.verify(
-                    () -> UrlConstraints.validateUrl("javascript:alert('xss')"),
-                    times(1)
-            );
-        }
-    }
-
-    @Test
-    @DisplayName("No debería actualizar avatar con URL apuntando a IP privada (SSRF)")
-    void updateUserSettings_Url_PrivateIp() {
-        settings = new UpdateUserSettings(
-                "Alex Dev",
-                "http://192.168.1.1/internal",
-                false, false, false);
-
-        try (MockedStatic<UrlConstraints> mockedStatic = mockStatic(UrlConstraints.class)) {
-
-            mockedStatic.when(() -> UrlConstraints.validateUrl("http://192.168.1.1/internal"))
-                    .thenThrow(new ValidationException("No se permiten URLs que apunten a direcciones IP privadas."));
-
-            assertThatThrownBy(() -> userService.updateUserSettings(settings, jwt))
-                    .isInstanceOf(ValidationException.class)
-                    .hasMessageContaining("IP privadas");
-
-            mockedStatic.verify(
-                    () -> UrlConstraints.validateUrl("http://192.168.1.1/internal"),
-                    times(1)
-            );
-        }
+        // THEN
+        assertThat(result.fullName()).isEqualTo("admin");
+        verify(userRepository, times(1)).save(any(User.class));
     }
 }

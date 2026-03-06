@@ -17,7 +17,6 @@ type User {
 
 input UpdateUserSettingsInput {
     fullName: String
-    avatarUrl: String
     hasSeenWelcome: Boolean
     receiveReceipts: Boolean
     receivesPromotions: Boolean

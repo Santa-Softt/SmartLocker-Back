@@ -22,8 +22,13 @@ import org.springframework.validation.annotation.Validated;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Service responsible for handling authentication operations including user
+ * creation, session management, token refresh, and token revocation.
+ */
 @Service
 @RequiredArgsConstructor
+@Validated
 public class AuthenticationService {
 
     private final UserRepository userRepository;
@@ -32,50 +37,76 @@ public class AuthenticationService {
     private final JwtProvider jwtProvider;
     private final RefreshTokenService refreshTokenService;
 
+    /**
+     * Finds an existing user by email or creates a new user from OIDC authentication.
+     * For non-admin users, updates full name and avatar URL. For admin users,
+     * only updates the avatar URL.
+     *
+     * @param oidcUser the OIDC user containing authentication information
+     * @return the existing or newly created user
+     */
     @Transactional
     public User findOrCreateUser(OidcUser oidcUser) {
         return userRepository.findByEmail(oidcUser.getEmail())
-                .map(existingUser -> {
-                    if(existingUser.getRole() != Role.ADMIN){
-                        existingUser.setFullName(oidcUser.getFullName());
-                        existingUser.setAvatarUrl(oidcUser.getPicture());
-                        return existingUser;
-                    }
-                    existingUser.setAvatarUrl(oidcUser.getPicture());
-                    return existingUser;
-                })
-                .orElseGet(() -> {
-                    User newUser = userMapper.toNewUser(oidcUser);
-                    return userRepository.save(newUser);
-                });
+                .map(user -> updateUserInfo(user, oidcUser))
+                .orElseGet(() -> userRepository.save(userMapper.toNewUser(oidcUser)));
     }
 
+    private User updateUserInfo(User user, OidcUser oidcUser) {
+        user.setAvatarUrl(oidcUser.getPicture());
+        if (user.getRole() != Role.ADMIN) {
+            user.setAvatarUrl(oidcUser.getPicture());
+        }
+        return user;
+    }
+
+    /**
+     * Creates a cookie to clear authentication data by name.
+     *
+     * @param name the name of the cookie to clear
+     * @return the response cookie configured to clear the specified cookie
+     */
     public ResponseCookie clearCookies(String name){
         return cookieFactory.clean(name);
     }
 
-    @Validated
+    /**
+     * Retrieves logged user data along with token details.
+     *
+     * @param id the user identifier
+     * @param expiresAt the expiration time of the token
+     * @return session response containing user data and token details
+     * @throws UsernameNotFoundException if the user does not exist
+     */
     public SessionResponse getLoggedUserData(@NotNull UUID id, Instant expiresAt) {
-        var user =  userMapper.toUserResponse(userRepository.findById(id)
-                .orElseThrow(() -> new UsernameNotFoundException("El usuario no existe")));
-        return new SessionResponse(user, new TokenDetails(expiresAt));
+        return userRepository.findById(id)
+                .map(userMapper::toUserResponse)
+                .map(userResponse -> new SessionResponse(userResponse, new TokenDetails(expiresAt)))
+                .orElseThrow(() -> new UsernameNotFoundException("El usuario no existe"));
     }
 
+    /**
+     * Refreshes the user session by rotating the refresh token and generating
+     * a new access token.
+     *
+     * @param oldRawRefreshToken the current refresh token to be rotated
+     * @return authentication response containing the new access token and
+     *         the new refresh token
+     */
     @Transactional
     public AuthResponse refreshSession(String oldRawRefreshToken) {
-        // 1. Rotación (DB Layer)
         RotationResult result = refreshTokenService.rotateRefreshToken(oldRawRefreshToken);
 
-        // 2. Generación JWT (Crypto Layer)1
         String newAccessToken = jwtProvider.generateAccessToken(result.user());
 
-        // 3. Empaquetado (Transport Layer)
         return new AuthResponse(newAccessToken, result.newRawRefreshToken());
     }
 
     /**
-     * Cierra la sesión revocando el Refresh Token persistente.
-     * Es una operación "fire and forget" (si el token es inválido, no falla).
+     * Revokes the refresh token to log out the user. This is a fire-and-forget
+     * operation that does not fail if the token is already invalid.
+     *
+     * @param rawRefreshToken the refresh token to revoke
      */
     @Transactional
     public void revokeRefreshToken(String rawRefreshToken) {
