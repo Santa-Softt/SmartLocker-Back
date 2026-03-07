@@ -19,5 +19,15 @@ public final class CacheNames {
      */
     public static final String USER_CACHE = "user";
 
+    /**
+     * Cache name for locker availability summary by size.
+     */
+    public static final String LOCKER_SUMMARY_CACHE = "lockerSummary";
+
+    /**
+     * Cache name for available lockers filtered by size.
+     */
+    public static final String LOCKER_AVAILABLE_BY_SIZE_CACHE = "lockerAvailableBySize";
+
     private CacheNames() {}
 }

@@ -94,7 +94,11 @@ graphiql:
   public-access: ${DEV_GRAPHIQL}
 redis:
   idempotency-lock-ttl-hours: ${REDIS_IDEMPOTENCY_LOCK_TTL_HOURS:24}
-
+  cache:
+    locker-summary: 5s
+    locker-available-by-size: 10s
+    default-ttl: 10m
+    user-ttl: 15m
 async:
   webhook:
     core-pool-size: ${ASYNC_WEBHOOK_CORE_POOL_SIZE:4}

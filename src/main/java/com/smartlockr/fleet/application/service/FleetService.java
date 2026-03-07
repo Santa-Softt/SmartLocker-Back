@@ -12,8 +12,12 @@ import com.smartlockr.fleet.infrastructure.graphql.dto.LockerSizeSummaryResponse
 import com.smartlockr.fleet.infrastructure.persistence.model.entity.Locker;
 import com.smartlockr.fleet.infrastructure.persistence.repository.LockerRepository;
 import com.smartlockr.fleet.infrastructure.persistence.repository.dto.LockerCountSummary;
+import com.smartlockr.shared.utils.CacheNames;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
@@ -47,6 +51,7 @@ public class FleetService {
      * @throws IllegalArgumentException if size is null
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheNames.LOCKER_AVAILABLE_BY_SIZE_CACHE, key = "#size")
     public List<LockerResponse> findAvailableLockersBySize(LockerSize size) {
         if (size == null) {
             throw new IllegalArgumentException("Locker size cannot be null.");
@@ -64,6 +69,10 @@ public class FleetService {
      * @throws UnavailableLockerException if no locker of the requested size is available
      */
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = CacheNames.LOCKER_SUMMARY_CACHE, allEntries = true),
+            @CacheEvict(value = CacheNames.LOCKER_AVAILABLE_BY_SIZE_CACHE, key = "#lockerSize")
+    })
     public Locker reserveLockerForHold(LockerSize lockerSize) {
         Locker locker = lockerRepository.findAndLockOne(lockerSize, LockerState.AVAILABLE, Limit.of(1))
                 .orElseThrow(() -> new UnavailableLockerException(
@@ -83,6 +92,10 @@ public class FleetService {
      * @param lockerId the UUID of the locker to release
      */
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = CacheNames.LOCKER_SUMMARY_CACHE, allEntries = true),
+            @CacheEvict(value = CacheNames.LOCKER_AVAILABLE_BY_SIZE_CACHE, allEntries = true)
+    })
     public void releaseLockerFromHold(UUID lockerId) {
         if (lockerId == null) {
             log.warn("Attempted to release a locker with a null ID.");
@@ -111,6 +124,7 @@ public class FleetService {
      * @return list of {@link LockerSizeSummaryResponse} sorted by size
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheNames.LOCKER_SUMMARY_CACHE, key = "'available-summary'")
     public List<LockerSizeSummaryResponse> getLockerSizeSummaries() {
         BusinessConfigSnapshot config = businessService.getActiveBusinessConfig();
         List<RateSnapshot> rates = config.rates();
