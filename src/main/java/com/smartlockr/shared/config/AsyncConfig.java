@@ -34,6 +34,18 @@ public class AsyncConfig implements AsyncConfigurer {
     @Value("${async.webhook.await-termination-seconds:60}")
     private int awaitTerminationSeconds;
 
+    @Value("${async.email.core-pool-size:2}")
+    private int emailCorePoolSize;
+
+    @Value("${async.email.max-pool-size:4}")
+    private int emailMaxPoolSize;
+
+    @Value("${async.email.queue-capacity:50}")
+    private int emailQueueCapacity;
+
+    @Value("${async.email.await-termination-seconds:30}")
+    private int emailAwaitTerminationSeconds;
+
     /**
      * Creates a dedicated executor for webhook processing with configurable settings.
      * Core pool handles normal load, max pool handles traffic spikes,
@@ -55,6 +67,22 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.initialize();
         log.info("Webhook async executor configured: core={}, max={}, queue={}, await={}s",
                 corePoolSize, maxPoolSize, queueCapacity, awaitTerminationSeconds);
+        return executor;
+    }
+
+    @Bean(name = "emailExecutor")
+    public Executor emailExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(emailCorePoolSize);
+        executor.setMaxPoolSize(emailMaxPoolSize);
+        executor.setQueueCapacity(emailQueueCapacity);
+        executor.setThreadNamePrefix("email-");
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(emailAwaitTerminationSeconds);
+        executor.initialize();
+        log.info("Email async executor configured: core={}, max={}, queue={}, await={}s",
+                emailCorePoolSize, emailMaxPoolSize, emailQueueCapacity, emailAwaitTerminationSeconds);
         return executor;
     }
 

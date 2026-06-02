@@ -21,10 +21,12 @@ import java.time.Duration;
  * @param refreshTtlDuration La duración del refresh token puede ser días, horas, etc.
  * @param oauthRedirectUri Redirección después de un inicio de sesión correcto
  * @param adminEmail El correo electronico del administrador del sistema
+ * @param csrfEnabled Enables CSRF protection for cookie-authenticated requests
  */
 @Validated
 @ConfigurationProperties(prefix = "security")
 public record SecurityProperties(
+        boolean csrfEnabled,
         @NotBlank String secretB64,
         @NotBlank String issuer,
         @NotBlank String audience,

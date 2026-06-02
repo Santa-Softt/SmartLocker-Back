@@ -7,13 +7,17 @@ import com.smartlockr.fleet.application.exception.LockerNotFoundException;
 import com.smartlockr.fleet.application.exception.MissingBusinessConfigException;
 import com.smartlockr.fleet.application.exception.UnavailableLockerException;
 import com.smartlockr.rental.application.exception.IllegalLockerChangeStateException;
+import com.smartlockr.shared.i18n.MessageResolver;
 import graphql.GraphQLError;
 import graphql.GraphqlErrorBuilder;
 import graphql.schema.DataFetchingEnvironment;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ValidationException;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.graphql.execution.DataFetcherExceptionResolverAdapter;
 import org.springframework.graphql.execution.ErrorType;
 import org.springframework.security.access.AccessDeniedException;
@@ -28,21 +32,24 @@ import java.util.concurrent.CompletionException;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class GlobalGraphQlExceptionHandler extends DataFetcherExceptionResolverAdapter {
 
+    private final ObjectProvider<MessageResolver> messageResolverProvider;
+
     private static final List<Rule> RULES = List.of(
-            Rule.of(RentFailedException.class, ErrorType.BAD_REQUEST, "LOCKER_STATUS_FAILED"),
-            Rule.of(AuthenticationException.class, ErrorType.UNAUTHORIZED, "UNAUTHORIZED"),
-            Rule.of(AccessDeniedException.class, ErrorType.FORBIDDEN, "FORBIDDEN"),
-            Rule.of(LockerNotFoundException.class, ErrorType.NOT_FOUND, "RESOURCE_NOT_FOUND"),
-            Rule.of(EntityNotFoundException.class, ErrorType.NOT_FOUND, "RESOURCE_NOT_FOUND"),
-            Rule.of(IllegalArgumentException.class, ErrorType.BAD_REQUEST, "BAD_REQUEST"),
-            Rule.of(UnavailableLockerException.class, ErrorType.BAD_REQUEST, "LOCKER_UNAVAILABLE"),
-            Rule.of(MissingBusinessConfigException.class, ErrorType.INTERNAL_ERROR, "BUSINESS_UNAVAILABLE"),
-            Rule.of(PaymentGatewayException.class, ErrorType.INTERNAL_ERROR, "PAYMENT_GATEWAY_UNAVAILABLE"),
-            Rule.of(InvalidMPSignatureException.class, ErrorType.INTERNAL_ERROR, "MP_SIGNATURE_MISMATCH"),
-            Rule.of(IllegalLockerChangeStateException.class, ErrorType.BAD_REQUEST, "LOCKER_NOT_IN_HOLD"),
-            Rule.of(ValidationException.class, ErrorType.BAD_REQUEST, "USER_CONSTRAINTS_NOT_ALLOWED")
+            Rule.of(RentFailedException.class, ErrorType.BAD_REQUEST, "LOCKER_STATUS_FAILED", "error.rental.failed"),
+            Rule.of(AuthenticationException.class, ErrorType.UNAUTHORIZED, "UNAUTHORIZED", "error.auth.unauthorized"),
+            Rule.of(AccessDeniedException.class, ErrorType.FORBIDDEN, "FORBIDDEN", "error.auth.forbidden"),
+            Rule.of(LockerNotFoundException.class, ErrorType.NOT_FOUND, "RESOURCE_NOT_FOUND", "error.resource.not-found"),
+            Rule.of(EntityNotFoundException.class, ErrorType.NOT_FOUND, "RESOURCE_NOT_FOUND", "error.resource.not-found"),
+            Rule.of(IllegalArgumentException.class, ErrorType.BAD_REQUEST, "BAD_REQUEST", "error.request.bad"),
+            Rule.of(UnavailableLockerException.class, ErrorType.BAD_REQUEST, "LOCKER_UNAVAILABLE", "error.locker.unavailable"),
+            Rule.of(MissingBusinessConfigException.class, ErrorType.INTERNAL_ERROR, "BUSINESS_UNAVAILABLE", "error.business.unavailable"),
+            Rule.of(PaymentGatewayException.class, ErrorType.INTERNAL_ERROR, "PAYMENT_GATEWAY_UNAVAILABLE", "error.payment.gateway"),
+            Rule.of(InvalidMPSignatureException.class, ErrorType.INTERNAL_ERROR, "MP_SIGNATURE_MISMATCH", "error.payment.invalid-signature"),
+            Rule.of(IllegalLockerChangeStateException.class, ErrorType.BAD_REQUEST, "LOCKER_NOT_IN_HOLD", "error.rental.invalid-state"),
+            Rule.of(ValidationException.class, ErrorType.BAD_REQUEST, "USER_CONSTRAINTS_NOT_ALLOWED", "error.validation.failed")
     );
 
     @Override
@@ -55,9 +62,9 @@ public class GlobalGraphQlExceptionHandler extends DataFetcherExceptionResolverA
 
         if (rule == null) {
             log.error("Unhandled exception. path={}", env.getExecutionStepInfo().getPath(), root);
-            return error(env, ErrorType.INTERNAL_ERROR, "INTERNAL_SERVER_ERROR", "An internal server error occurred.");
+            return error(env, ErrorType.INTERNAL_ERROR, "INTERNAL_SERVER_ERROR", resolve("error.internal"));
         }
-        return error(env, rule.type, rule.code, safeMessage(root));
+        return error(env, rule.type, rule.code, resolve(rule.messageCode));
     }
 
     private GraphQLError error(DataFetchingEnvironment env, ErrorType type, String code, String message) {
@@ -77,20 +84,20 @@ public class GlobalGraphQlExceptionHandler extends DataFetcherExceptionResolverA
         return ex;
     }
 
-    private String safeMessage(Throwable ex) {
-        return (ex.getMessage() == null || ex.getMessage().isBlank())
-                ? "Request could not be processed."
-                : ex.getMessage();
+    private String resolve(String code) {
+        MessageResolver messageResolver = messageResolverProvider.getIfAvailable();
+        return messageResolver == null ? code : messageResolver.resolve(code, LocaleContextHolder.getLocale());
     }
 
     private record Rule(
             Class<? extends Throwable> exType,
             ErrorType type,
-            String code
+            String code,
+            String messageCode
     ) {
         boolean matches(Throwable ex) { return exType.isInstance(ex); }
-        static Rule of(Class<? extends Throwable> exType, ErrorType type, String code) {
-            return new Rule(exType, type, code);
+        static Rule of(Class<? extends Throwable> exType, ErrorType type, String code, String messageCode) {
+            return new Rule(exType, type, code, messageCode);
         }
     }
 }

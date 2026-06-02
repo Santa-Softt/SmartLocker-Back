@@ -18,7 +18,6 @@ import org.springframework.data.redis.serializer.RedisSerializer;
 public class RedisSerializationConfig {
 
     private static final String DOMAIN_BASE_PACKAGE = "com.smartlockr.";
-    private static final String JAVA_BASE_PACKAGE = "java.";
 
     @Bean
     public RedisSerializer<Object> redisSerializer() {
@@ -28,9 +27,7 @@ public class RedisSerializationConfig {
 
     private ObjectMapper createRedisObjectMapper() {
         PolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()
-                .allowIfBaseType(Object.class)
                 .allowIfSubType(DOMAIN_BASE_PACKAGE)
-                .allowIfSubType(JAVA_BASE_PACKAGE)
                 .build();
 
         ObjectMapper.DefaultTypeResolverBuilder typer = new ObjectMapper.DefaultTypeResolverBuilder(
