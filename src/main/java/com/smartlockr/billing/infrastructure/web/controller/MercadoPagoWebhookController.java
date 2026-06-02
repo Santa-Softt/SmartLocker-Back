@@ -3,6 +3,7 @@ package com.smartlockr.billing.infrastructure.web.controller;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.smartlockr.billing.application.service.MercadoPagoSignatureValidator;
 import com.smartlockr.billing.application.service.WebhookProcessingService;
+import com.smartlockr.shared.messaging.MessageDispatchException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -34,7 +35,7 @@ public class MercadoPagoWebhookController {
      * @param signature optional webhook signature for verification
      * @param requestId optional request ID for tracing
      * @param payload the webhook payload containing payment information
-     * @return 200 OK if queued successfully, 400 if payload invalid, 500 on error
+     * @return 200 OK if queued successfully, 400 if payload invalid, 503 if queue unavailable
      */
     @PostMapping
     public ResponseEntity<Void> receiveWebhook(
@@ -64,9 +65,15 @@ public class MercadoPagoWebhookController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
 
-            webhookProcessingService.processPaymentAsync(resourceId);
+            webhookProcessingService.processPaymentAsync(resourceId, requestId);
             return ResponseEntity.ok().build();
 
+        } catch (MessageDispatchException e) {
+            log.error("[MERCADOPAGO] Webhook could not be queued. MercadoPago should retry. reason={}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        } catch (IllegalArgumentException e) {
+            log.warn("[MERCADOPAGO] Invalid webhook payload: {}", e.getMessage());
+            return ResponseEntity.badRequest().build();
         } catch (Exception e) {
             log.error("[MERCADOPAGO] Unexpected error processing webhook", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -93,6 +100,12 @@ public class MercadoPagoWebhookController {
             }
             return ResponseEntity.ok().build();
 
+        } catch (MessageDispatchException e) {
+            log.error("[MERCADOPAGO] Webhook could not be queued in no-signature endpoint. reason={}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        } catch (IllegalArgumentException e) {
+            log.warn("[MERCADOPAGO] Invalid no-signature webhook payload: {}", e.getMessage());
+            return ResponseEntity.badRequest().build();
         } catch (Exception e) {
             log.error("[MERCADOPAGO] Unexpected error processing webhook (no-signature endpoint)", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

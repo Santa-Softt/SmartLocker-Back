@@ -18,6 +18,8 @@ import com.smartlockr.fleet.infrastructure.persistence.model.entity.Locker;
 import com.smartlockr.rental.domain.enums.RentalState;
 import com.smartlockr.rental.infrastructure.persistence.entity.model.Rental;
 import com.smartlockr.rental.infrastructure.persistence.repository.RentalRepository;
+import com.smartlockr.shared.email.EmailNotificationSender;
+import com.smartlockr.shared.email.PaymentReceiptEmailMessage;
 import com.smartlockr.shared.properties.MercadoPagoProperties;
 import com.smartlockr.shared.properties.RedisProperties;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -47,10 +50,15 @@ public class BillingService {
     private final PreferenceClient preferenceClient;
     private final StringRedisTemplate redisTemplate;
     private final RedisProperties redisProperties;
+    private final EmailNotificationSender emailNotificationSender;
     private static final String CURRENCY_ARS = "ARS";
     private static final String PAYMENT_APPROVED = "approved";
     private static final String HOLD_KEY_PREFIX = "hold:rental:";
     private static final String ACTIVE_KEY_PREFIX = "active:rental:";
+    private static final String INITIAL_RENTAL_PAYMENT = "INITIAL_RENTAL";
+    private static final String RENTAL_EXTENSION_PAYMENT = "RENTAL_EXTENSION";
+    private static final String PENALTY_PAYMENT = "PENALTY";
+    private static final String PAYMENT_REFERENCE_SEPARATOR = ":";
 
     /**
      * Creates a payment order for an existing rental in HOLD state.
@@ -88,7 +96,13 @@ public class BillingService {
         rentalRepository.save(rental);
 
         try {
-            PreferenceRequest preferenceRequest = buildPreferenceRequest(rental, establishedPrice, config);
+            PreferenceRequest preferenceRequest = buildPreferenceRequest(
+                    rental,
+                    establishedPrice,
+                    config,
+                    "Alquiler Locker - Tamaño " + rental.getLocker().getSize(),
+                    buildInitialRentalReference(rental.getId())
+            );
             Preference preference = preferenceClient.create(preferenceRequest);
 
             log.info("Preferencia de pago creada para Rental: {}. ID: {}", rentalId, preference.getId());
@@ -100,6 +114,88 @@ public class BillingService {
         } catch (Exception e) {
             log.error("Error crítico al generar orden de pago para Rental: {}", rentalId, e);
             throw new PaymentGatewayException("No se pudo procesar la solicitud de pago");
+        }
+    }
+
+    @Transactional
+    public PaymentLinkResponse createExtensionPaymentOrder(UUID rentalId,
+                                                           UUID userId,
+                                                           int extensionMinutes,
+                                                           BigDecimal extensionPrice) {
+        Rental rental = rentalRepository.findById(rentalId)
+                .orElseThrow(() -> new IllegalArgumentException("Rental no encontrado: " + rentalId));
+
+        if (!rental.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("User does not own this rental");
+        }
+
+        if (rental.getState() != RentalState.ACTIVE) {
+            throw new RentFailedException("Solo se pueden extender alquileres activos.");
+        }
+
+        if (extensionMinutes <= 0) {
+            throw new RentFailedException("La extensión debe ser mayor a 0 minutos.");
+        }
+
+        BusinessConfigSnapshot config = businessService.getActiveBusinessConfig();
+
+        try {
+            PreferenceRequest preferenceRequest = buildPreferenceRequest(
+                    rental,
+                    extensionPrice,
+                    config,
+                    "Extensión Locker - Tamaño " + rental.getLocker().getSize(),
+                    buildRentalExtensionReference(rentalId, extensionMinutes)
+            );
+            Preference preference = preferenceClient.create(preferenceRequest);
+
+            log.info("Preferencia de extensión creada para Rental: {}. ID: {}", rentalId, preference.getId());
+            return new PaymentLinkResponse(preference.getInitPoint());
+
+        } catch (MPApiException e) {
+            log.error("Error API MercadoPago [Status: {}]: {}", e.getApiResponse().getStatusCode(), e.getApiResponse().getContent());
+            throw new PaymentGatewayException("Error en comunicación con pasarela de pago");
+        } catch (Exception e) {
+            log.error("Error crítico al generar orden de extensión para Rental: {}", rentalId, e);
+            throw new PaymentGatewayException("No se pudo procesar la solicitud de extensión");
+        }
+    }
+
+    @Transactional
+    public PaymentLinkResponse createPenaltyPaymentOrder(UUID rentalId, UUID userId) {
+        Rental rental = rentalRepository.findById(rentalId)
+                .orElseThrow(() -> new IllegalArgumentException("Rental no encontrado: " + rentalId));
+
+        if (!rental.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("User does not own this rental");
+        }
+
+        if (rental.getState() != RentalState.PENALIZED) {
+            throw new RentFailedException("Solo se pueden pagar penalizaciones de alquileres penalizados.");
+        }
+
+        BigDecimal penaltyAmount = calculatePenaltyAmount(rental);
+        BusinessConfigSnapshot config = businessService.getActiveBusinessConfig();
+
+        try {
+            PreferenceRequest preferenceRequest = buildPreferenceRequest(
+                    rental,
+                    penaltyAmount,
+                    config,
+                    "Penalización Locker - Tamaño " + rental.getLocker().getSize(),
+                    buildPenaltyReference(rentalId)
+            );
+            Preference preference = preferenceClient.create(preferenceRequest);
+
+            log.info("Preferencia de penalización creada para Rental: {}. ID: {}", rentalId, preference.getId());
+            return new PaymentLinkResponse(preference.getInitPoint());
+
+        } catch (MPApiException e) {
+            log.error("Error API MercadoPago [Status: {}]: {}", e.getApiResponse().getStatusCode(), e.getApiResponse().getContent());
+            throw new PaymentGatewayException("Error en comunicación con pasarela de pago");
+        } catch (Exception e) {
+            log.error("Error crítico al generar orden de penalización para Rental: {}", rentalId, e);
+            throw new PaymentGatewayException("No se pudo procesar la solicitud de penalización");
         }
     }
 
@@ -191,12 +287,12 @@ public class BillingService {
             return;
         }
 
-        UUID rentalId = parseRentalId(lockKey, paymentId, externalReference);
-        if (rentalId == null) {
+        PaymentReference reference = parsePaymentReference(lockKey, paymentId, externalReference);
+        if (reference == null) {
             return;
         }
 
-        handleApprovedPayment(rentalId, payment);
+        handleApprovedPayment(reference, payment);
         safeUpdateLockKeyToProcessed(lockKey);
     }
 
@@ -222,9 +318,52 @@ public class BillingService {
      * @param externalReference the raw external reference string from MercadoPago
      * @return the parsed {@link UUID}, or null if parsing fails
      */
-    private UUID parseRentalId(String lockKey, String paymentId, String externalReference) {
+    private PaymentReference parsePaymentReference(String lockKey, String paymentId, String externalReference) {
+        if (!externalReference.contains(PAYMENT_REFERENCE_SEPARATOR)) {
+            return parseLegacyInitialPaymentReference(lockKey, paymentId, externalReference);
+        }
+
+        String[] parts = externalReference.split(PAYMENT_REFERENCE_SEPARATOR);
+        if (parts.length < 2) {
+            log.error("[MERCADOPAGO] External reference inválida {}: {}", paymentId, externalReference);
+            safeDeleteLockKey(lockKey);
+            return null;
+        }
+
         try {
-            return UUID.fromString(externalReference);
+            return switch (parts[0]) {
+                case INITIAL_RENTAL_PAYMENT -> new PaymentReference(
+                        PaymentPurpose.INITIAL_RENTAL,
+                        UUID.fromString(parts[1]),
+                        null
+                );
+                case RENTAL_EXTENSION_PAYMENT -> {
+                    if (parts.length != 3) {
+                        throw new IllegalArgumentException("Invalid rental extension reference");
+                    }
+                    yield new PaymentReference(
+                            PaymentPurpose.RENTAL_EXTENSION,
+                            UUID.fromString(parts[1]),
+                            Integer.parseInt(parts[2])
+                    );
+                }
+                case PENALTY_PAYMENT -> new PaymentReference(
+                        PaymentPurpose.PENALTY,
+                        UUID.fromString(parts[1]),
+                        null
+                );
+                default -> throw new IllegalArgumentException("Unknown payment purpose: " + parts[0]);
+            };
+        } catch (IllegalArgumentException e) {
+            log.error("[MERCADOPAGO] External reference inválida {}: {}", paymentId, externalReference);
+            safeDeleteLockKey(lockKey);
+            return null;
+        }
+    }
+
+    private PaymentReference parseLegacyInitialPaymentReference(String lockKey, String paymentId, String externalReference) {
+        try {
+            return new PaymentReference(PaymentPurpose.INITIAL_RENTAL, UUID.fromString(externalReference), null);
         } catch (IllegalArgumentException _) {
             log.error("[MERCADOPAGO] External reference inválida {}: {}", paymentId, externalReference);
             safeDeleteLockKey(lockKey);
@@ -244,7 +383,20 @@ public class BillingService {
         }
     }
 
-    private void handleApprovedPayment(UUID rentalId, Payment payment) {
+    private void handleApprovedPayment(PaymentReference reference, Payment payment) {
+        if (reference.purpose() == PaymentPurpose.RENTAL_EXTENSION) {
+            confirmExtensionPayment(reference.rentalId(), reference.extensionMinutes(), payment.getTransactionAmount());
+            return;
+        }
+        if (reference.purpose() == PaymentPurpose.PENALTY) {
+            confirmPenaltyPayment(reference.rentalId(), payment.getTransactionAmount());
+            return;
+        }
+
+        handleInitialRentalPayment(reference.rentalId(), payment);
+    }
+
+    private void handleInitialRentalPayment(UUID rentalId, Payment payment) {
         rentalRepository.findById(rentalId).ifPresentOrElse(rental -> {
 
             if (rental.getState() == RentalState.ACTIVE) {
@@ -262,7 +414,9 @@ public class BillingService {
 
     private void confirmRentalPayment(UUID rentalId, BigDecimal amountPaid) {
         rentalRepository.findById(rentalId).ifPresentOrElse(rental -> {
-            if (rental.getState() == RentalState.ACTIVE) {
+            if (rental.getState() != RentalState.HOLD) {
+                log.warn("[MERCADOPAGO] Pago inicial aprobado para Rental {} en estado {}. Requiere conciliación.",
+                        rentalId, rental.getState());
                 return;
             }
 
@@ -273,21 +427,120 @@ public class BillingService {
             locker.setState(LockerState.OCCUPIED);
 
             rentalRepository.save(rental);
+            sendPaymentReceiptIfAllowed(rental, amountPaid);
 
             safeDeleteLockKey(HOLD_KEY_PREFIX + rentalId);
 
-            long rentalExpirationTTL = Duration.between(Instant.now(), rental.getEstimatedEndTime()).getSeconds();
-            if (rentalExpirationTTL <= 0) rentalExpirationTTL = 1;
-
-            try {
-                redisTemplate.opsForValue().set(ACTIVE_KEY_PREFIX + rental.getId(), "1", rentalExpirationTTL, TimeUnit.SECONDS);
-            } catch (Exception e) {
-                log.warn("[REDIS] Failed to set active rental timer for {}. Expiration will be managed by reconciliation.", rentalId, e);
-            }
+            setActiveRentalTimer(rental);
 
             log.info("Pago confirmado exitosamente para Rental: {}. Clave de expiración en Redis eliminada y timer activo iniciado.", rentalId);
 
         }, () -> log.error("Rental no encontrado tras notificación de pago: {}", rentalId));
+    }
+
+    private void confirmExtensionPayment(UUID rentalId, Integer extensionMinutes, BigDecimal amountPaid) {
+        if (extensionMinutes == null || extensionMinutes <= 0) {
+            log.error("[MERCADOPAGO] Extensión aprobada con duración inválida para Rental {}", rentalId);
+            return;
+        }
+
+        rentalRepository.findById(rentalId).ifPresentOrElse(rental -> {
+            if (rental.getState() != RentalState.ACTIVE) {
+                log.warn("[MERCADOPAGO] Extensión aprobada para Rental {} en estado {}. Requiere conciliación.",
+                        rentalId, rental.getState());
+                return;
+            }
+
+            Instant extensionBase = rental.getEstimatedEndTime().isAfter(Instant.now())
+                    ? rental.getEstimatedEndTime()
+                    : Instant.now();
+
+            rental.setEstimatedEndTime(extensionBase.plus(extensionMinutes, ChronoUnit.MINUTES));
+            rental.setFinalCost(addMoney(rental.getFinalCost(), amountPaid));
+            rentalRepository.save(rental);
+            setActiveRentalTimer(rental);
+            sendPaymentReceiptIfAllowed(rental, amountPaid);
+
+            log.info("Extensión confirmada para Rental: {} por {} minutos.", rentalId, extensionMinutes);
+        }, () -> log.error("[ERROR] Extensión aprobada para Rental inexistente: {}", rentalId));
+    }
+
+    private void confirmPenaltyPayment(UUID rentalId, BigDecimal amountPaid) {
+        rentalRepository.findById(rentalId).ifPresentOrElse(rental -> {
+            if (rental.getState() != RentalState.PENALIZED) {
+                log.warn("[MERCADOPAGO] Penalización aprobada para Rental {} en estado {}. Requiere conciliación.",
+                        rentalId, rental.getState());
+                return;
+            }
+
+            rental.setState(RentalState.COMPLETED);
+            rental.setPenalized(false);
+            rental.setFinalCost(addMoney(rental.getFinalCost(), amountPaid));
+
+            Locker locker = rental.getLocker();
+            locker.setState(LockerState.AVAILABLE);
+
+            var user = rental.getUser();
+            if (user != null && !rentalRepository.existsByUserIdAndStateAndIdNot(
+                    user.getId(), RentalState.PENALIZED, rentalId)) {
+                user.setSuspended(false);
+                user.setSuspensionTime(null);
+            }
+
+            rentalRepository.save(rental);
+            safeDeleteLockKey(ACTIVE_KEY_PREFIX + rentalId);
+            sendPaymentReceiptIfAllowed(rental, amountPaid);
+
+            log.info("Penalización confirmada y alquiler completado para Rental: {}", rentalId);
+        }, () -> log.error("[ERROR] Penalización aprobada para Rental inexistente: {}", rentalId));
+    }
+
+    private BigDecimal calculatePenaltyAmount(Rental rental) {
+        if (rental.getFinalCost() == null) {
+            throw new RentFailedException("El alquiler no tiene costo base para calcular penalización.");
+        }
+
+        BusinessConfigSnapshot config = businessService.getActiveBusinessConfig();
+        return rental.getFinalCost()
+                .multiply(BigDecimal.valueOf(config.penaltyPercentage()))
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.CEILING);
+    }
+
+    private void setActiveRentalTimer(Rental rental) {
+        long rentalExpirationTTL = Duration.between(Instant.now(), rental.getEstimatedEndTime()).getSeconds();
+        if (rentalExpirationTTL <= 0) rentalExpirationTTL = 1;
+
+        try {
+            redisTemplate.opsForValue().set(ACTIVE_KEY_PREFIX + rental.getId(), "1", rentalExpirationTTL, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("[REDIS] Failed to set active rental timer for {}. Expiration will be managed by reconciliation.",
+                    rental.getId(), e);
+        }
+    }
+
+    private void sendPaymentReceiptIfAllowed(Rental rental, BigDecimal amountPaid) {
+        var user = rental.getUser();
+        if (user == null || user.getUserPreferences() == null || !user.getUserPreferences().isReceiveReceipts()) {
+            return;
+        }
+
+        Locker locker = rental.getLocker();
+        emailNotificationSender.sendPaymentReceipt(new PaymentReceiptEmailMessage(
+                user.getEmail(),
+                user.getFullName(),
+                rental.getId(),
+                locker == null ? null : locker.getLabel(),
+                locker == null || locker.getSize() == null ? null : locker.getSize().name(),
+                amountPaid,
+                rental.getStartTime(),
+                rental.getEstimatedEndTime()
+        ));
+    }
+
+    private BigDecimal addMoney(BigDecimal currentAmount, BigDecimal amountToAdd) {
+        BigDecimal safeCurrent = currentAmount == null ? BigDecimal.ZERO : currentAmount;
+        BigDecimal safeAmountToAdd = amountToAdd == null ? BigDecimal.ZERO : amountToAdd;
+        return safeCurrent.add(safeAmountToAdd);
     }
 
     private void validateRentalStatus(Rental rental) {
@@ -296,9 +549,13 @@ public class BillingService {
         }
     }
 
-    private PreferenceRequest buildPreferenceRequest(Rental rental, BigDecimal amount, BusinessConfigSnapshot config) {
+    private PreferenceRequest buildPreferenceRequest(Rental rental,
+                                                     BigDecimal amount,
+                                                     BusinessConfigSnapshot config,
+                                                     String title,
+                                                     String externalReference) {
         PreferenceItemRequest item = PreferenceItemRequest.builder()
-                .title("Alquiler Locker - Tamaño " + rental.getLocker().getSize())
+                .title(title)
                 .quantity(1)
                 .unitPrice(amount)
                 .currencyId(CURRENCY_ARS)
@@ -306,7 +563,7 @@ public class BillingService {
 
         return PreferenceRequest.builder()
                 .items(Collections.singletonList(item))
-                .externalReference(rental.getId().toString())
+                .externalReference(externalReference)
                 .notificationUrl(mpProperties.webhookUrl())
                 .binaryMode(true)
                 .expirationDateTo(Instant.now()
@@ -318,5 +575,31 @@ public class BillingService {
                         .build())
                 .autoReturn(PAYMENT_APPROVED)
                 .build();
+    }
+
+    private String buildInitialRentalReference(UUID rentalId) {
+        return INITIAL_RENTAL_PAYMENT + PAYMENT_REFERENCE_SEPARATOR + rentalId;
+    }
+
+    private String buildRentalExtensionReference(UUID rentalId, int extensionMinutes) {
+        return RENTAL_EXTENSION_PAYMENT + PAYMENT_REFERENCE_SEPARATOR + rentalId +
+                PAYMENT_REFERENCE_SEPARATOR + extensionMinutes;
+    }
+
+    private String buildPenaltyReference(UUID rentalId) {
+        return PENALTY_PAYMENT + PAYMENT_REFERENCE_SEPARATOR + rentalId;
+    }
+
+    private enum PaymentPurpose {
+        INITIAL_RENTAL,
+        RENTAL_EXTENSION,
+        PENALTY
+    }
+
+    private record PaymentReference(
+            PaymentPurpose purpose,
+            UUID rentalId,
+            Integer extensionMinutes
+    ) {
     }
 }

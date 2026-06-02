@@ -1,12 +1,12 @@
 package com.smartlockr.billing.application.service;
 
+import com.smartlockr.billing.application.messaging.PaymentWebhookMessagePublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 /**
- * Service for asynchronous processing of payment webhooks.
+ * Service for queueing payment webhooks.
  * Decouples webhook reception from payment processing to ensure
  * fast HTTP responses to MercadoPago while maintaining reliable processing.
  */
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class WebhookProcessingService {
 
-    private final BillingService billingService;
+    private final PaymentWebhookMessagePublisher paymentWebhookMessagePublisher;
 
     /**
      * Processes a payment notification asynchronously in a background thread.
@@ -23,14 +23,12 @@ public class WebhookProcessingService {
      *
      * @param paymentId the MercadoPago payment identifier to process
      */
-    @Async("webhookExecutor")
     public void processPaymentAsync(String paymentId) {
-        long startTime = System.currentTimeMillis();
-        try {
-            billingService.processPaymentNotification(paymentId);
-            log.info("[MERCADOPAGO] Payment {} processed in {}ms", paymentId, System.currentTimeMillis() - startTime);
-        } catch (Exception e) {
-            log.error("[MERCADOPAGO] Payment {} failed in {}ms: {}", paymentId, System.currentTimeMillis() - startTime, e.getMessage());
-        }
+        processPaymentAsync(paymentId, null);
+    }
+
+    public void processPaymentAsync(String paymentId, String requestId) {
+        paymentWebhookMessagePublisher.publishPaymentWebhook(paymentId, requestId);
+        log.info("[MERCADOPAGO] Payment webhook accepted for queueing: paymentId={}", paymentId);
     }
 }

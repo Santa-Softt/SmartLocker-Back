@@ -16,7 +16,7 @@ import java.math.BigDecimal;
 @Embeddable
 public class Rate {
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "varchar(16)")
     private LockerSize size;
 
     @Column(nullable = false)

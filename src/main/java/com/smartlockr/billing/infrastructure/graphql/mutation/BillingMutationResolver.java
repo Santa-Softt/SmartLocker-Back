@@ -38,4 +38,13 @@ public class BillingMutationResolver {
         }
         return billingService.createPaymentOrder(rentalId, UUID.fromString(jwt.getSubject()));
     }
+
+    @MutationMapping
+    public PaymentLinkResponse createPenaltyPaymentOrder(@Argument UUID rentalId,
+                                                         @AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) {
+            throw new AccessDeniedException("Usuario sin iniciar sesión");
+        }
+        return billingService.createPenaltyPaymentOrder(rentalId, UUID.fromString(jwt.getSubject()));
+    }
 }
