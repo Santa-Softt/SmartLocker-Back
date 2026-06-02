@@ -1,0 +1,19 @@
+services:
+  redis:
+    image: redis:8.4-alpine
+    container_name: redis-cache
+    labels:
+      - "org.springframework.boot.ignore=true"
+    env_file:
+      - vars.env
+    command: ["sh","-c","redis-server --requirepass $$SPRING_DATA_REDIS_PASSWORD --notify-keyspace-events Ex --appendonly yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "sh", "-c", "redis-cli -a $$SPRING_DATA_REDIS_PASSWORD ping"]
+      interval: 10s
+volumes:
+  redis_data:

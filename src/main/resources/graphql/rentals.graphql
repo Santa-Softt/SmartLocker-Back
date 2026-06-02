@@ -1,0 +1,44 @@
+type Mutation{
+    """
+    Argumentos:
+    - size: El tamaño del Locker.
+    - durationMinutes: El tiempo que el usuario desea alquilar (ej. 60, 120).
+    Debe estar dentro de los límites configurados en el sistema.
+    """
+    initiateHold(size: LockerSize!, durationMinutes: Int!): ActiveRental!
+
+    """
+    Argumentos:
+    - el rentalId obtenido después de hacer HOLD
+    - Se obtiene un mensaje de respuesta de liberación del locker
+    """
+    cancelLockerHold(rentalId: ID!): CancelledRental!
+
+    """
+    Libera un locker con alquiler ACTIVE y finaliza el alquiler.
+    """
+    releaseLocker(rentalId: ID!): ReleasedRental!
+
+    """
+    Crea una orden de pago para extender un alquiler ACTIVE.
+    """
+    createExtensionPaymentOrder(rentalId: ID!, durationMinutes: Int!): PaymentLink!
+}
+
+type ActiveRental {
+    rentalId: ID!
+    locker: Locker!
+    startTime: String!
+    estimatedEndTime: String!
+    holdExpiresAt: String!
+    isPenalized: Boolean!
+    finalPrice: String!
+}
+
+type CancelledRental{
+    message: String!
+}
+
+type ReleasedRental{
+    message: String!
+}

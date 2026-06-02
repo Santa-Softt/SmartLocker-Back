@@ -1,0 +1,17 @@
+extend type Mutation {
+    """
+    Argumentos:
+    rentalId: Proviene de ActiveRental.id
+    PaymentLink: La url a redirigir hacia mercadopago
+    """
+    createPaymentOrder(rentalId: ID!): PaymentLink!
+
+    """
+    Crea una orden para pagar la penalización de un alquiler vencido.
+    """
+    createPenaltyPaymentOrder(rentalId: ID!): PaymentLink!
+}
+
+type PaymentLink{
+    url: String!
+}

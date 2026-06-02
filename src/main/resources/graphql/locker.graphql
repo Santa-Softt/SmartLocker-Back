@@ -1,0 +1,92 @@
+type Query {
+    getAvailableLockersBySize(size: LockerSize!): [Locker!]!
+    getLockerSizeSummaries: [LockerSizeSummary!]!
+    adminGetLockers(size: LockerSize, state: LockerState): [Locker!]!
+    adminGetBusinessConfig: BusinessConfig!
+}
+
+extend type Mutation {
+    adminUpdateLockerState(input: UpdateLockerStateInput!): Locker!
+    adminUpdateBusinessConfig(input: UpdateBusinessConfigInput!): BusinessConfig!
+}
+
+type Subscription {
+    onLockerStateChange: LockerUpdateResponse!
+}
+
+type LockerUpdateResponse {
+    id: ID!
+    state: LockerState!
+}
+
+type Locker {
+    id: ID!
+    label: String!
+    size: LockerSize!
+    state: LockerState!
+}
+
+enum LockerSize {
+    XS
+    S
+    M
+    L
+    XL
+}
+
+enum LockerState {
+    AVAILABLE
+    HOLD
+    OCCUPIED
+    MAINTENANCE
+}
+
+type LockerSizeSummary{
+    size: LockerSize!
+    hourlyRate: Float!
+    availableCount: Int!
+}
+
+type BusinessConfig {
+    id: ID!
+    holdDurationSeconds: Int!
+    minRentalDurationMinutes: Int!
+    maxRentalDurationMinutes: Int!
+    penaltyPercentage: Int!
+    streakThreshold: Int!
+    streakDiscountPercentage: Int!
+    serviceStatus: ServiceStatus!
+    rates: [Rate!]!
+}
+
+type Rate {
+    size: LockerSize!
+    hourlyRate: Float!
+}
+
+input UpdateLockerStateInput {
+    lockerId: ID!
+    state: LockerState!
+}
+
+input UpdateBusinessConfigInput {
+    holdDurationSeconds: Int!
+    minRentalDurationMinutes: Int!
+    maxRentalDurationMinutes: Int!
+    penaltyPercentage: Int!
+    streakDiscountPercentage: Int!
+    streakThreshold: Int!
+    serviceStatus: ServiceStatus!
+    rates: [RateInput!]!
+}
+
+input RateInput {
+    size: LockerSize!
+    hourlyRate: Float!
+}
+
+enum ServiceStatus {
+    OPERATIONAL
+    PREVENTIVE_MAINTENANCE
+    FULL_MAINTENANCE
+}

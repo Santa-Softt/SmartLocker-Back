@@ -1,0 +1,70 @@
+# --- Build Artifacts ---
+# Exclude compiled binaries to enforce reproducible builds inside container
+target/
+build/
+*.jar
+*.war
+*.ear
+
+# --- Version Control ---
+# Prevent git metadata from bloating image layers
+.git/
+.gitignore
+.gitattributes
+
+# --- IDE Configuration ---
+# Exclude editor-specific settings and project files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+
+# --- Secrets and Local Overrides ---
+# Critical: Exclude actual values and local overrides, keep profile templates
+.env
+.env.*
+*.env
+application-local.yml
+application-local.yaml
+application-local.properties
+src/main/resources/application-local.yml
+src/main/resources/application-local.yaml
+src/main/resources/application-local.properties
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+*.crt
+
+# --- Logs and Temp Files ---
+# Exclude runtime generated files
+logs/
+*.log
+tmp/
+temp/
+*.tmp
+
+# --- Operating System Files ---
+# Exclude OS-specific metadata
+.DS_Store
+Thumbs.db
+
+# --- Docker Configuration ---
+# Prevent recursive copying of docker context files
+Dockerfile
+docker-compose*.yml
+compose*.yml
+redis.yml
+.dockerignore
+
+# --- Repository Metadata Not Needed In Images ---
+.github/
+README.md
+HELP.md
+sonar-project.properties
+monitoring/

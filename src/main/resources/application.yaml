@@ -1,0 +1,178 @@
+spring:
+  application:
+    name: SmartLockr
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+        default-page-size: 20
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
+      connect-timeout: 5s
+      timeout: 5s
+      repositories:
+        enabled: false
+      lettuce:
+        pool:
+          max-active: 12
+          max-idle: 8
+          min-idle: 2
+          max-wait: 5s
+  graphql:
+    schema:
+      file-extensions: .graphql, .graphqls, .gql, .gqls
+    websocket:
+      path: /graphql
+      keep-alive: 30s
+  threads:
+    virtual:
+      enabled: true
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        batch_fetch_style: PADDED
+        default_batch_fetch_size: 12
+        query:
+          in_clause_parameter_padding: true
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - openid
+              - profile
+              - email
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            client-name: Google
+        provider:
+          google:
+            issuer-uri: https://accounts.google.com
+  datasource:
+    hikari:
+      connection-timeout: 20000
+      maximum-pool-size: 20
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:true}
+          starttls:
+            enable: ${SMTP_STARTTLS_ENABLE:true}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    connection-timeout: ${RABBITMQ_CONNECTION_TIMEOUT:5s}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      simple:
+        auto-startup: ${RABBITMQ_LISTENER_AUTO_STARTUP:true}
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: ${RABBITMQ_RETRY_MAX_ATTEMPTS:3}
+          initial-interval: ${RABBITMQ_RETRY_INITIAL_INTERVAL:1s}
+          multiplier: ${RABBITMQ_RETRY_MULTIPLIER:2}
+          max-interval: ${RABBITMQ_RETRY_MAX_INTERVAL:10s}
+management:
+  server:
+    port: 9090
+    address: ${MANAGEMENT_SERVER_ADDRESS:127.0.0.1}
+  health:
+    mail:
+      enabled: ${MANAGEMENT_HEALTH_MAIL_ENABLED:false}
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    prometheus:
+      access: read-only
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+server:
+  error:
+    include-stacktrace: never
+security:
+  csrf-enabled: ${SECURITY_CSRF_ENABLED:true}
+smartlockr:
+  allowed-origins: ${ALLOWED_ORIGINS}
+  seed:
+    enabled: ${SMARTLOCKR_SEED_ENABLED:true}
+  scheduling:
+    enabled: ${SMARTLOCKR_SCHEDULING_ENABLED:true}
+  email:
+    enabled: ${EMAIL_ENABLED:false}
+    from: ${EMAIL_FROM:no-reply@smartlockr.com}
+    support-address: ${EMAIL_SUPPORT_ADDRESS:support@smartlockr.com}
+    brand-name: ${EMAIL_BRAND_NAME:SmartLockr}
+  messaging:
+    email-fallback-to-smtp: ${MESSAGING_EMAIL_FALLBACK_TO_SMTP:true}
+    rabbit:
+      exchange: ${RABBITMQ_EXCHANGE:smartlockr.events}
+      dead-letter-exchange: ${RABBITMQ_DEAD_LETTER_EXCHANGE:smartlockr.events.dlx}
+      queues:
+        payment-webhook: ${RABBITMQ_PAYMENT_WEBHOOK_QUEUE:smartlockr.payment.webhook.q}
+        welcome-email: ${RABBITMQ_WELCOME_EMAIL_QUEUE:smartlockr.email.welcome.q}
+        payment-receipt: ${RABBITMQ_PAYMENT_RECEIPT_QUEUE:smartlockr.email.receipt.q}
+      routing-keys:
+        payment-webhook: ${RABBITMQ_PAYMENT_WEBHOOK_ROUTING_KEY:billing.payment.webhook.received}
+        welcome-email: ${RABBITMQ_WELCOME_EMAIL_ROUTING_KEY:email.welcome.requested}
+        payment-receipt: ${RABBITMQ_PAYMENT_RECEIPT_ROUTING_KEY:email.receipt.requested}
+  business:
+    max-hold-duration-seconds: 240
+    min-rental-duration-minutes: 15
+    max-rental-duration-minutes: 10800
+    rates:
+      XS: 1600
+      S: 2300
+      M: 3800
+      L: 4900
+      XL: 6150
+    quantities:
+      XS: 128
+      S: 80
+      M: 72
+      L: 64
+      XL: 0
+    penalty-percentage: 50
+    streak-discount-percentage: 10
+    streak-threshold: 7
+graphiql:
+  public-access: ${DEV_GRAPHIQL}
+redis:
+  idempotency-lock-ttl-hours: ${REDIS_IDEMPOTENCY_LOCK_TTL_HOURS:24}
+  cache:
+    locker-summary: 5s
+    locker-available-by-size: 10s
+    default-ttl: 10m
+    user-ttl: 15m
+async:
+  webhook:
+    core-pool-size: ${ASYNC_WEBHOOK_CORE_POOL_SIZE:4}
+    max-pool-size: ${ASYNC_WEBHOOK_MAX_POOL_SIZE:8}
+    queue-capacity: ${ASYNC_WEBHOOK_QUEUE_CAPACITY:100}
+    await-termination-seconds: ${ASYNC_WEBHOOK_AWAIT_TERMINATION_SECONDS:60}
+  email:
+    core-pool-size: ${ASYNC_EMAIL_CORE_POOL_SIZE:2}
+    max-pool-size: ${ASYNC_EMAIL_MAX_POOL_SIZE:4}
+    queue-capacity: ${ASYNC_EMAIL_QUEUE_CAPACITY:50}
+    await-termination-seconds: ${ASYNC_EMAIL_AWAIT_TERMINATION_SECONDS:30}
