@@ -41,7 +41,7 @@ public class User {
     private Instant suspensionTime;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "varchar(32)")
     private Role role;
 
     @Version

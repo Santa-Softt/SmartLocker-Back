@@ -29,18 +29,34 @@ public class UserService {
     @Transactional
     @CacheEvict(value = CacheNames.USER_CACHE, key = "#userJwt.subject")
     public UserResponse updateUserSettings(UpdateUserSettings settings, Jwt userJwt){
-        if(userJwt == null)
+        if (userJwt == null) {
             throw new AccessDeniedException("El usuario no tiene una sesión iniciada");
+        }
 
-        var user = userRepository.findById(UUID.fromString(userJwt.getSubject()))
+        if (settings == null) {
+            throw new IllegalArgumentException("settings cannot be null");
+        }
+
+        UUID userId = parseUserId(userJwt);
+        var user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado"));
-        if (user.getRole() != Role.ADMIN)  UserConstraints.validateName(settings.fullName());
+        if (user.getRole() != Role.ADMIN) {
+            UserConstraints.validateName(settings.fullName());
+        }
 
         userMapper.updateExistingUser(settings, user);
 
         var savedUser = userRepository.save(user);
 
         return userMapper.toUserResponse(savedUser);
+    }
+
+    private UUID parseUserId(Jwt userJwt) {
+        try {
+            return UUID.fromString(userJwt.getSubject());
+        } catch (IllegalArgumentException e) {
+            throw new AccessDeniedException("El token no contiene un identificador de usuario valido", e);
+        }
     }
 
     @Cacheable(value = CacheNames.USER_CACHE, key = "#id")

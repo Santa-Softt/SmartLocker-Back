@@ -10,6 +10,9 @@ import com.smartlockr.iam.infrastructure.persistence.repository.UserRepository;
 import com.smartlockr.iam.infrastructure.rest.auth.dto.SessionResponse;
 import com.smartlockr.iam.infrastructure.rest.auth.dto.TokenDetails;
 import com.smartlockr.iam.infrastructure.security.factory.CookieFactory;
+import com.smartlockr.rental.application.service.RentalService;
+import com.smartlockr.shared.email.EmailNotificationSender;
+import com.smartlockr.shared.email.WelcomeEmailMessage;
 import com.smartlockr.shared.utils.CacheNames;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +42,8 @@ public class AuthenticationService {
     private final JwtProvider jwtProvider;
     private final RefreshTokenService refreshTokenService;
     private final UserService userService;
+    private final EmailNotificationSender emailNotificationSender;
+    private final RentalService rentalService;
 
     /**
      * Finds an existing user by email or creates a new user from OIDC authentication.
@@ -52,12 +57,40 @@ public class AuthenticationService {
     @CacheEvict(value = CacheNames.USER_CACHE, key = "#result.id")
     public User findOrCreateUser(OidcUser oidcUser) {
         return userRepository.findByEmail(oidcUser.getEmail())
-                .map(user -> updateUserInfo(user, oidcUser))
-                .orElseGet(() -> userRepository.save(userMapper.toNewUser(oidcUser)));
+                .map(user -> synchronizeSuspension(updateUserInfo(user, oidcUser)))
+                .orElseGet(() -> createUser(oidcUser));
+    }
+
+    private User createUser(OidcUser oidcUser) {
+        User savedUser = userRepository.save(userMapper.toNewUser(oidcUser));
+        emailNotificationSender.sendWelcomeEmail(new WelcomeEmailMessage(
+                savedUser.getEmail(),
+                savedUser.getFullName()
+        ));
+        return savedUser;
     }
 
     private User updateUserInfo(User user, OidcUser oidcUser) {
         user.setAvatarUrl(oidcUser.getPicture());
+        return user;
+    }
+
+    private User synchronizeSuspension(User user) {
+        if (user.getId() == null) {
+            return user;
+        }
+
+        boolean hasPenalty = rentalService.hasPenalizedRentalForUser(user.getId());
+        if (hasPenalty) {
+            user.setSuspended(true);
+            if (user.getSuspensionTime() == null) {
+                user.setSuspensionTime(Instant.now());
+            }
+            return user;
+        }
+
+        user.setSuspended(false);
+        user.setSuspensionTime(null);
         return user;
     }
 
@@ -80,7 +113,11 @@ public class AuthenticationService {
      * @throws UsernameNotFoundException if the user does not exist
      */
     public SessionResponse getLoggedUserData(@NotNull UUID id, Instant expiresAt) {
-        return new SessionResponse(userService.getUserResponse(id), new TokenDetails(expiresAt));
+        return new SessionResponse(
+                userService.getUserResponse(id),
+                new TokenDetails(expiresAt),
+                rentalService.findActiveRentalForUser(id).orElse(null)
+        );
     }
 
     /**

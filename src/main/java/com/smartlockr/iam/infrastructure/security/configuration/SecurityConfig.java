@@ -3,6 +3,7 @@ package com.smartlockr.iam.infrastructure.security.configuration;
 import com.smartlockr.iam.infrastructure.security.error.handler.SecurityErrorHandler;
 import com.smartlockr.iam.infrastructure.security.oauth2.GoogleSuccessHandler;
 import com.smartlockr.shared.properties.ApplicationProperties;
+import com.smartlockr.shared.properties.SecurityProperties;
 import jakarta.servlet.http.Cookie;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -17,6 +18,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -42,10 +44,18 @@ public class SecurityConfig {
                                                    JwtDecoder jwtDecoder,
                                                    JwtAuthenticationConverter jwtAuthenticationConverter,
                                                    GoogleSuccessHandler googleSuccessHandler,
-                                                   SecurityErrorHandler securityErrorHandler) throws Exception {
+                                                   SecurityErrorHandler securityErrorHandler,
+                                                   SecurityProperties securityProperties) throws Exception {
         return http
                 .cors(Customizer.withDefaults())
-                .csrf(AbstractHttpConfigurer::disable)
+                .csrf(csrf -> {
+                    if (securityProperties.csrfEnabled()) {
+                        csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                                .ignoringRequestMatchers("/api/v1/webhooks/mercadopago");
+                    } else {
+                        csrf.disable();
+                    }
+                })
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -56,7 +66,7 @@ public class SecurityConfig {
                         authorize.requestMatchers("/graphiql", "/graphql").permitAll();
                     authorize.requestMatchers("/auth/refresh").permitAll()
                             .requestMatchers("/api/v1/webhooks/mercadopago").permitAll()
-                            .requestMatchers("/actuator/health").permitAll()
+                            .requestMatchers("/actuator/health", "/actuator/prometheus").permitAll()
                             .anyRequest().authenticated();
                 })
 
