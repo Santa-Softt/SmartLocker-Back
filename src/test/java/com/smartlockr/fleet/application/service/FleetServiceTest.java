@@ -29,8 +29,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.BDDMockito.*;
 
 @DisplayName("FleetService")
@@ -252,4 +252,134 @@ class FleetServiceTest {
         then(lockerMapper).should().toSummaryResponse(eq(rateL), eq(8));
     }
 
+    @Test
+    @DisplayName("findLockersForAdmin - size + state filtra por ambos")
+    void shouldFilterBySizeAndStateForAdmin() {
+        var size = LockerSize.M;
+        var state = LockerState.AVAILABLE;
+        var locker = new Locker(UUID.randomUUID(), "L-1", size, state, null);
+        var response = new LockerResponse(locker.getId(), "L-1", size, state, BigDecimal.TEN);
+
+        given(lockerRepository.findBySizeAndStateOrderByLabelAsc(size, state))
+                .willReturn(List.of(locker));
+        given(lockerMapper.toResponseList(List.of(locker))).willReturn(List.of(response));
+
+        var result = fleetService.findLockersForAdmin(size, state);
+
+        assertThat(result).containsExactly(response);
+        then(lockerRepository).should().findBySizeAndStateOrderByLabelAsc(size, state);
+    }
+
+    @Test
+    @DisplayName("findLockersForAdmin - solo size filtra por tamano")
+    void shouldFilterBySizeOnlyForAdmin() {
+        var size = LockerSize.L;
+        var locker = new Locker(UUID.randomUUID(), "L-2", size, LockerState.AVAILABLE, null);
+        var response = new LockerResponse(locker.getId(), "L-2", size, LockerState.AVAILABLE, BigDecimal.TEN);
+
+        given(lockerRepository.findBySizeOrderByLabelAsc(size)).willReturn(List.of(locker));
+        given(lockerMapper.toResponseList(List.of(locker))).willReturn(List.of(response));
+
+        var result = fleetService.findLockersForAdmin(size, null);
+
+        assertThat(result).containsExactly(response);
+        then(lockerRepository).should().findBySizeOrderByLabelAsc(size);
+    }
+
+    @Test
+    @DisplayName("findLockersForAdmin - solo state filtra por estado")
+    void shouldFilterByStateOnlyForAdmin() {
+        var state = LockerState.MAINTENANCE;
+        var locker = new Locker(UUID.randomUUID(), "L-3", LockerSize.M, state, null);
+        var response = new LockerResponse(locker.getId(), "L-3", LockerSize.M, state, BigDecimal.TEN);
+
+        given(lockerRepository.findByStateOrderByLabelAsc(state)).willReturn(List.of(locker));
+        given(lockerMapper.toResponseList(List.of(locker))).willReturn(List.of(response));
+
+        var result = fleetService.findLockersForAdmin(null, state);
+
+        assertThat(result).containsExactly(response);
+        then(lockerRepository).should().findByStateOrderByLabelAsc(state);
+    }
+
+    @Test
+    @DisplayName("findLockersForAdmin - sin filtros devuelve todos los lockers")
+    void shouldReturnAllLockersWhenNoFilterForAdmin() {
+        var locker = new Locker(UUID.randomUUID(), "L-4", LockerSize.S, LockerState.AVAILABLE, null);
+        var response = new LockerResponse(locker.getId(), "L-4", LockerSize.S, LockerState.AVAILABLE, BigDecimal.TEN);
+
+        given(lockerRepository.findAllByOrderByLabelAsc()).willReturn(List.of(locker));
+        given(lockerMapper.toResponseList(List.of(locker))).willReturn(List.of(response));
+
+        var result = fleetService.findLockersForAdmin(null, null);
+
+        assertThat(result).containsExactly(response);
+        then(lockerRepository).should().findAllByOrderByLabelAsc();
+    }
+
+    @Test
+    @DisplayName("updateLockerState - actualiza estado y publica evento si cambia")
+    void shouldUpdateLockerStateAndPublishEvent() {
+        var lockerId = UUID.randomUUID();
+        var locker = new Locker(lockerId, "L-5", LockerSize.M, LockerState.AVAILABLE, null);
+        var response = new LockerResponse(lockerId, "L-5", LockerSize.M, LockerState.MAINTENANCE, BigDecimal.TEN);
+
+        given(lockerRepository.findById(lockerId)).willReturn(Optional.of(locker));
+        given(lockerRepository.save(locker)).willReturn(locker);
+        given(lockerMapper.toResponseList(List.of(locker))).willReturn(List.of(response));
+
+        var result = fleetService.updateLockerState(lockerId, LockerState.MAINTENANCE);
+
+        assertThat(result).isEqualTo(response);
+        assertThat(locker.getState()).isEqualTo(LockerState.MAINTENANCE);
+        then(lockerRepository).should().save(locker);
+        then(eventPublisher).should().publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue())
+                .extracting(LockerStateChangedEvent::lockerId, LockerStateChangedEvent::newState)
+                .containsExactly(lockerId, LockerState.MAINTENANCE);
+    }
+
+    @Test
+    @DisplayName("updateLockerState - no publica evento si el estado no cambia")
+    void shouldNotPublishEventWhenStateUnchanged() {
+        var lockerId = UUID.randomUUID();
+        var locker = new Locker(lockerId, "L-6", LockerSize.M, LockerState.AVAILABLE, null);
+        var response = new LockerResponse(lockerId, "L-6", LockerSize.M, LockerState.AVAILABLE, BigDecimal.TEN);
+
+        given(lockerRepository.findById(lockerId)).willReturn(Optional.of(locker));
+        given(lockerRepository.save(locker)).willReturn(locker);
+        given(lockerMapper.toResponseList(List.of(locker))).willReturn(List.of(response));
+
+        var result = fleetService.updateLockerState(lockerId, LockerState.AVAILABLE);
+
+        assertThat(result).isEqualTo(response);
+        then(eventPublisher).should(never()).publishEvent(any(LockerStateChangedEvent.class));
+    }
+
+    @Test
+    @DisplayName("updateLockerState - lanza IllegalArgumentException con lockerId null")
+    void shouldThrowWhenLockerIdIsNull() {
+        assertThatThrownBy(() -> fleetService.updateLockerState(null, LockerState.AVAILABLE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Locker ID cannot be null");
+    }
+
+    @Test
+    @DisplayName("updateLockerState - lanza IllegalArgumentException con state null")
+    void shouldThrowWhenStateIsNull() {
+        assertThatThrownBy(() -> fleetService.updateLockerState(UUID.randomUUID(), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Locker state cannot be null");
+    }
+
+    @Test
+    @DisplayName("updateLockerState - lanza LockerNotFoundException si el locker no existe")
+    void shouldThrowLockerNotFoundWhenIdDoesNotExist() {
+        var lockerId = UUID.randomUUID();
+        given(lockerRepository.findById(lockerId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> fleetService.updateLockerState(lockerId, LockerState.AVAILABLE))
+                .isInstanceOf(com.smartlockr.fleet.application.exception.LockerNotFoundException.class)
+                .hasMessageContaining(lockerId.toString());
+    }
 }
