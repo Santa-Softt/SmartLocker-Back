@@ -13,6 +13,16 @@ type Mutation{
     - Se obtiene un mensaje de respuesta de liberación del locker
     """
     cancelLockerHold(rentalId: ID!): CancelledRental!
+
+    """
+    Libera un locker con alquiler ACTIVE y finaliza el alquiler.
+    """
+    releaseLocker(rentalId: ID!): ReleasedRental!
+
+    """
+    Crea una orden de pago para extender un alquiler ACTIVE.
+    """
+    createExtensionPaymentOrder(rentalId: ID!, durationMinutes: Int!): PaymentLink!
 }
 
 type ActiveRental {
@@ -26,5 +36,9 @@ type ActiveRental {
 }
 
 type CancelledRental{
+    message: String!
+}
+
+type ReleasedRental{
     message: String!
 }

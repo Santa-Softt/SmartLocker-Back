@@ -31,6 +31,7 @@ public class Rental {
     @Id
     private UUID id;
     @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "varchar(32)")
     private RentalState state;
     private Instant startTime;
     private Instant estimatedEndTime;

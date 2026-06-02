@@ -24,6 +24,10 @@ public interface RentalRepository extends JpaRepository<Rental, UUID> {
      */
     Optional<Rental> findByUserIdAndStateIn(UUID userId, List<RentalState> states);
 
+    boolean existsByUserIdAndState(UUID userId, RentalState state);
+
+    boolean existsByUserIdAndStateAndIdNot(UUID userId, RentalState state, UUID rentalId);
+
     /**
      * Finds all rentals in HOLD state that were created before a specific timestamp.
      *

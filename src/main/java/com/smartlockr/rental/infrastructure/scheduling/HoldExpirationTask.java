@@ -3,7 +3,7 @@ package com.smartlockr.rental.infrastructure.scheduling;
 import com.smartlockr.rental.application.service.RentalService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
-@EnableScheduling
+@ConditionalOnProperty(prefix = "smartlockr.scheduling", name = "enabled", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 public class HoldExpirationTask {
 

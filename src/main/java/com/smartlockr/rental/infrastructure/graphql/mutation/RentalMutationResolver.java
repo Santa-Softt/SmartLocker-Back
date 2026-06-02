@@ -1,6 +1,7 @@
 package com.smartlockr.rental.infrastructure.graphql.mutation;
 
 import com.smartlockr.commons.annotations.GraphQLController;
+import com.smartlockr.billing.infrastructure.dto.PaymentLinkResponse;
 import com.smartlockr.fleet.domain.enums.LockerSize;
 import com.smartlockr.rental.application.service.RentalService;
 import com.smartlockr.rental.infrastructure.graphql.dto.RentalHoldResponse;
@@ -58,5 +59,24 @@ public class RentalMutationResolver {
             throw new AccessDeniedException("Usuario sin iniciar sesión");
         }
         return rentalService.cancelUserHold(rentalId, UUID.fromString(jwt.getSubject()));
+    }
+
+    @MutationMapping
+    public RentalHoldResponse releaseLocker(@Argument UUID rentalId,
+                                            @AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) {
+            throw new AccessDeniedException("Usuario sin iniciar sesión");
+        }
+        return rentalService.releaseLocker(rentalId, UUID.fromString(jwt.getSubject()));
+    }
+
+    @MutationMapping
+    public PaymentLinkResponse createExtensionPaymentOrder(@Argument UUID rentalId,
+                                                           @Argument Integer durationMinutes,
+                                                           @AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) {
+            throw new AccessDeniedException("Usuario sin iniciar sesión");
+        }
+        return rentalService.createExtensionPaymentOrder(rentalId, UUID.fromString(jwt.getSubject()), durationMinutes);
     }
 }

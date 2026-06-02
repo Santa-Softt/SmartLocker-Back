@@ -1,6 +1,9 @@
 package com.smartlockr.rental.application.service;
 
+import com.smartlockr.billing.infrastructure.dto.PaymentLinkResponse;
+import com.smartlockr.billing.application.service.BillingService;
 import com.smartlockr.billing.application.service.PricingService;
+import com.smartlockr.fleet.domain.enums.LockerState;
 import com.smartlockr.fleet.application.service.BusinessService;
 import com.smartlockr.fleet.application.service.FleetService;
 import com.smartlockr.fleet.domain.enums.LockerSize;
@@ -11,6 +14,7 @@ import com.smartlockr.iam.infrastructure.persistence.repository.UserRepository;
 import com.smartlockr.rental.application.exception.IllegalLockerChangeStateException;
 import com.smartlockr.rental.application.mapper.RentalMapper;
 import com.smartlockr.rental.domain.enums.RentalState;
+import com.smartlockr.rental.infrastructure.dto.ActiveRentalSnapshot;
 import com.smartlockr.rental.infrastructure.graphql.dto.RentalHoldResponse;
 import com.smartlockr.rental.infrastructure.graphql.dto.RentalResponse;
 import com.smartlockr.rental.infrastructure.persistence.entity.model.Rental;
@@ -40,12 +44,14 @@ public class RentalService {
     private final UserRepository userRepository;
     private final FleetService fleetService;
     private final BusinessService businessService;
+    private final BillingService billingService;
     private final PricingService pricingService;
     private final RentalMapper rentalMapper;
     private final StringRedisTemplate redisTemplate;
     private final RedisHealthMonitor redisHealthMonitor;
 
     private static final String HOLD_KEY_PREFIX = "hold:rental:";
+    private static final String ACTIVE_KEY_PREFIX = "active:rental:";
 
     /**
      * Initiates a hold on an available locker of the requested size for the given user.
@@ -146,6 +152,65 @@ public class RentalService {
         return new RentalHoldResponse("Locker released successfully");
     }
 
+    @Transactional(readOnly = true)
+    public java.util.Optional<ActiveRentalSnapshot> findActiveRentalForUser(UUID userId) {
+        if (userId == null) {
+            return java.util.Optional.empty();
+        }
+
+        return rentalRepository.findByUserIdAndStateIn(
+                        userId,
+                        List.of(RentalState.ACTIVE, RentalState.PENALIZED)
+                )
+                .map(this::toActiveRentalSnapshot);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasPenalizedRentalForUser(UUID userId) {
+        return userId != null && rentalRepository.existsByUserIdAndState(userId, RentalState.PENALIZED);
+    }
+
+    @Transactional
+    public RentalHoldResponse releaseLocker(UUID rentalId, UUID userId) {
+        Rental rental = rentalRepository.findById(rentalId)
+                .orElseThrow(() -> new IllegalArgumentException("Rental not found for ID: " + rentalId));
+
+        if (!rental.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("User does not own this rental");
+        }
+
+        if (rental.getState() != RentalState.ACTIVE) {
+            throw new IllegalLockerChangeStateException("Only ACTIVE rentals can be released.");
+        }
+
+        rental.setState(RentalState.COMPLETED);
+        rentalRepository.save(rental);
+        fleetService.updateLockerState(rental.getLocker().getId(), LockerState.AVAILABLE);
+        deleteActiveRentalTimer(rentalId);
+
+        return new RentalHoldResponse("Locker released successfully");
+    }
+
+    @Transactional
+    public PaymentLinkResponse createExtensionPaymentOrder(UUID rentalId, UUID userId, int durationMinutes) {
+        Rental rental = rentalRepository.findById(rentalId)
+                .orElseThrow(() -> new IllegalArgumentException("Rental not found for ID: " + rentalId));
+
+        if (!rental.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("User does not own this rental");
+        }
+
+        if (rental.getState() != RentalState.ACTIVE) {
+            throw new IllegalLockerChangeStateException("Only ACTIVE rentals can be extended.");
+        }
+
+        BusinessConfigSnapshot config = businessService.getActiveBusinessConfig();
+        verifyRentalDuration(durationMinutes, config);
+
+        BigDecimal extensionPrice = pricingService.calculateTotalPrice(rental.getLocker().getSize(), durationMinutes);
+        return billingService.createExtensionPaymentOrder(rentalId, userId, durationMinutes, extensionPrice);
+    }
+
     /**
      * Triggered when Redis notifies that the hold TTL has expired.
      * Cancels the rental and releases the locker if it is still in HOLD state.
@@ -209,6 +274,34 @@ public class RentalService {
                 rentalRepository.save(rental);
             }
         });
+    }
+
+    private void deleteActiveRentalTimer(UUID rentalId) {
+        if (!redisHealthMonitor.isRedisAvailable()) {
+            return;
+        }
+
+        try {
+            redisTemplate.delete(ACTIVE_KEY_PREFIX + rentalId);
+        } catch (Exception e) {
+            log.warn("[REDIS] Could not delete active rental key for {} but rental was completed in DB.", rentalId, e);
+        }
+    }
+
+    private ActiveRentalSnapshot toActiveRentalSnapshot(Rental rental) {
+        Locker locker = rental.getLocker();
+        return new ActiveRentalSnapshot(
+                rental.getId(),
+                rental.getState(),
+                locker == null ? null : locker.getId(),
+                locker == null ? null : locker.getLabel(),
+                locker == null ? null : locker.getSize(),
+                locker == null ? null : locker.getState(),
+                rental.getStartTime(),
+                rental.getEstimatedEndTime(),
+                rental.getFinalCost(),
+                rental.isPenalized()
+        );
     }
 
     /**

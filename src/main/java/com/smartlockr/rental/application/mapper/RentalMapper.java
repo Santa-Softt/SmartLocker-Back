@@ -15,10 +15,9 @@ import java.time.Instant;
 public interface RentalMapper {
 
     @Mapping(target = "holdExpiresAt", source = "holdExpiration")
-    @Mapping(target = "locker", source = "rental.locker")
+    @Mapping(target = "locker", source = "rental.locker", qualifiedByName = "toLockerResponse")
     @Mapping(target = "finalPrice", source = "rental.finalCost")
     @Mapping(target = "rentalId", source = "rental.id")
-    @Mapping(target = "locker.hourlyRate", ignore = true)
     @Mapping(target = "isPenalized", ignore = true)
     RentalResponse toActiveRentalResponse(Rental rental, Instant holdExpiration);
 
