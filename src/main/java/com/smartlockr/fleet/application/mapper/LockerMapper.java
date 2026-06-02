@@ -8,6 +8,7 @@ import com.smartlockr.fleet.infrastructure.persistence.model.entity.Locker;
 import com.smartlockr.fleet.infrastructure.persistence.repository.dto.LockerUpdateResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.Named;
 
 import java.util.List;
 
@@ -18,6 +19,10 @@ public interface LockerMapper {
      * Mapea una lista de Lockers.
      */
     List<LockerResponse> toResponseList(List<Locker> lockers);
+
+    @Named("toLockerResponse")
+    @Mapping(target = "hourlyRate", ignore = true)
+    LockerResponse toResponse(Locker locker);
 
     /**
      * Builds a locker size summary response from a rate snapshot and current availability count.

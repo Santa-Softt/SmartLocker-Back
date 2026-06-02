@@ -60,6 +60,45 @@ public class FleetService {
         return lockerMapper.toResponseList(lockersFound);
     }
 
+    @Transactional(readOnly = true)
+    public List<LockerResponse> findLockersForAdmin(LockerSize size, LockerState state) {
+        List<Locker> lockers = switch (filterType(size, state)) {
+            case SIZE_AND_STATE -> lockerRepository.findBySizeAndStateOrderByLabelAsc(size, state);
+            case SIZE_ONLY -> lockerRepository.findBySizeOrderByLabelAsc(size);
+            case STATE_ONLY -> lockerRepository.findByStateOrderByLabelAsc(state);
+            case NO_FILTER -> lockerRepository.findAllByOrderByLabelAsc();
+        };
+        return lockerMapper.toResponseList(lockers);
+    }
+
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = CacheNames.LOCKER_SUMMARY_CACHE, allEntries = true),
+            @CacheEvict(value = CacheNames.LOCKER_AVAILABLE_BY_SIZE_CACHE, allEntries = true)
+    })
+    public LockerResponse updateLockerState(UUID lockerId, LockerState state) {
+        if (lockerId == null) {
+            throw new IllegalArgumentException("Locker ID cannot be null.");
+        }
+        if (state == null) {
+            throw new IllegalArgumentException("Locker state cannot be null.");
+        }
+
+        Locker locker = lockerRepository.findById(lockerId)
+                .orElseThrow(() -> new com.smartlockr.fleet.application.exception.LockerNotFoundException(
+                        "Locker no encontrado: " + lockerId));
+
+        LockerState previousState = locker.getState();
+        locker.setState(state);
+        Locker savedLocker = lockerRepository.save(locker);
+
+        if (previousState != state) {
+            eventPublisher.publishEvent(new LockerStateChangedEvent(savedLocker.getId(), state));
+        }
+
+        return lockerMapper.toResponseList(List.of(savedLocker)).getFirst();
+    }
+
     /**
      * Reserves an available locker of the given size for a hold, using a pessimistic lock
      * to prevent concurrent allocation conflicts.
@@ -141,6 +180,26 @@ public class FleetService {
                 )
                 .sorted(Comparator.comparing(LockerSizeSummaryResponse::size))
                 .toList();
+    }
+
+    private AdminLockerFilterType filterType(LockerSize size, LockerState state) {
+        if (size != null && state != null) {
+            return AdminLockerFilterType.SIZE_AND_STATE;
+        }
+        if (size != null) {
+            return AdminLockerFilterType.SIZE_ONLY;
+        }
+        if (state != null) {
+            return AdminLockerFilterType.STATE_ONLY;
+        }
+        return AdminLockerFilterType.NO_FILTER;
+    }
+
+    private enum AdminLockerFilterType {
+        SIZE_AND_STATE,
+        SIZE_ONLY,
+        STATE_ONLY,
+        NO_FILTER
     }
 }
 

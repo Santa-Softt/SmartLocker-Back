@@ -7,12 +7,15 @@ import com.smartlockr.fleet.infrastructure.dto.UpdateBusinessConfigCommand;
 import com.smartlockr.fleet.infrastructure.persistence.model.entity.BusinessConfig;
 import com.smartlockr.fleet.infrastructure.persistence.repository.BusinessConfigRepository;
 import com.smartlockr.shared.utils.CacheNames;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * Service responsible for managing the business configuration lifecycle.
@@ -22,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Validated
 public class BusinessService {
 
     private final BusinessConfigRepository businessConfigRepository;
@@ -55,9 +59,25 @@ public class BusinessService {
      * @return the updated and persisted {@link BusinessConfig}
      * @throws MissingBusinessConfigException if no active configuration exists to update
      */
-    @CacheEvict(value = CacheNames.BUSINESS_CONFIG_CACHE, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = CacheNames.BUSINESS_CONFIG_CACHE, allEntries = true),
+            @CacheEvict(value = CacheNames.LOCKER_SUMMARY_CACHE, allEntries = true)
+    })
     @Transactional
-    public BusinessConfig updateBusinessConfig(UpdateBusinessConfigCommand command) {
+    public BusinessConfig updateBusinessConfig(@Valid UpdateBusinessConfigCommand command) {
+        return updateBusinessConfigEntity(command);
+    }
+
+    @Caching(evict = {
+            @CacheEvict(value = CacheNames.BUSINESS_CONFIG_CACHE, allEntries = true),
+            @CacheEvict(value = CacheNames.LOCKER_SUMMARY_CACHE, allEntries = true)
+    })
+    @Transactional
+    public BusinessConfigSnapshot updateActiveBusinessConfig(@Valid UpdateBusinessConfigCommand command) {
+        return businessConfigMapper.toSnapshot(updateBusinessConfigEntity(command));
+    }
+
+    private BusinessConfig updateBusinessConfigEntity(UpdateBusinessConfigCommand command) {
         BusinessConfig config = businessConfigRepository.findTheOne()
                 .orElseThrow(() -> new MissingBusinessConfigException(
                         "No existe configuración activa para actualizar."));

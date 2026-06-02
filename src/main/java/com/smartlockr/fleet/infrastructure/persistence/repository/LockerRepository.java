@@ -31,6 +31,12 @@ public interface LockerRepository extends JpaRepository<Locker, UUID> {
 
     List<Locker> findBySizeAndStateOrderByLabelAsc(LockerSize size, LockerState lockerState);
 
+    List<Locker> findAllByOrderByLabelAsc();
+
+    List<Locker> findBySizeOrderByLabelAsc(LockerSize size);
+
+    List<Locker> findByStateOrderByLabelAsc(LockerState state);
+
     @Query("""
         SELECT new com.smartlockr.fleet.infrastructure.persistence.repository.dto.LockerCountSummary(
             l.size, COUNT(l)

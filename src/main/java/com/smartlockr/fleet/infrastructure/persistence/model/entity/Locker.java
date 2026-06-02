@@ -26,10 +26,10 @@ public class Locker {
     @Column(nullable = false, unique = true)
     private String label;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "varchar(16)")
     private LockerSize size;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "varchar(32)")
     private LockerState state;
     @OneToMany(mappedBy = "locker", fetch = FetchType.LAZY)
     private List<Rental> rentals;

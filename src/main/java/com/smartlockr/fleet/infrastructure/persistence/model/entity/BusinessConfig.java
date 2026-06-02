@@ -32,6 +32,7 @@ public class BusinessConfig {
     private int streakDiscountPercentage;
 
     @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "varchar(32)")
     private ServiceStatus serviceStatus;
 
     @ElementCollection(fetch = FetchType.EAGER)
