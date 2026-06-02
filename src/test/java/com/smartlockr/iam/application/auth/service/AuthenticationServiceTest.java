@@ -11,6 +11,11 @@ import com.smartlockr.iam.infrastructure.persistence.model.UserPreferences;
 import com.smartlockr.iam.infrastructure.persistence.repository.UserRepository;
 import com.smartlockr.iam.infrastructure.rest.auth.dto.SessionResponse;
 import com.smartlockr.iam.infrastructure.rest.auth.dto.UserResponse;
+import com.smartlockr.iam.infrastructure.security.factory.CookieFactory;
+import com.smartlockr.rental.application.service.RentalService;
+import com.smartlockr.shared.email.EmailNotificationSender;
+import com.smartlockr.shared.email.WelcomeEmailMessage;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -18,6 +23,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
@@ -40,6 +46,12 @@ class AuthenticationServiceTest {
     private JwtProvider jwtProvider;
     @Mock
     private RefreshTokenService refreshTokenService;
+    @Mock
+    private EmailNotificationSender emailNotificationSender;
+    @Mock
+    private RentalService rentalService;
+    @Mock
+    private CookieFactory cookieFactory;
 
     @InjectMocks
     private AuthenticationService authenticationService;
@@ -84,6 +96,7 @@ class AuthenticationServiceTest {
 
             // Verificamos que NO se usó el mapper (pues el usuario ya existía)
             verifyNoInteractions(userMapper);
+            verifyNoInteractions(emailNotificationSender);
         }
 
         @Test
@@ -107,6 +120,7 @@ class AuthenticationServiceTest {
 
             verify(userRepository).save(newUser);
             verify(userMapper).toNewUser(oidcUser);
+            verify(emailNotificationSender).sendWelcomeEmail(any(WelcomeEmailMessage.class));
         }
     }
 
@@ -214,4 +228,91 @@ class AuthenticationServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("Operation: Synchronize Suspension")
+    class SynchronizeSuspensionTests {
+
+        @Test
+        @DisplayName("Should suspend user when rentalService reports pending penalty")
+        void synchronizeSuspension_WithPenalty() {
+            UUID userId = UUID.randomUUID();
+            User existingUser = new TestUser();
+            existingUser.setId(userId);
+            existingUser.setEmail("test@smartlockr.com");
+            existingUser.setFullName("Test");
+            existingUser.setUserPreferences(UserPreferences.builder()
+                    .receiveReceipts(true)
+                    .receivesPromotions(true)
+                    .build());
+
+            when(userRepository.findByEmail("test@smartlockr.com")).thenReturn(Optional.of(existingUser));
+            when(rentalService.hasPenalizedRentalForUser(userId)).thenReturn(true);
+
+            OidcUser oidcUser = mockOidcUser("test@smartlockr.com", "Test", "pic.png");
+
+            User result = authenticationService.findOrCreateUser(oidcUser);
+
+            assertThat(result.isSuspended()).isTrue();
+            assertThat(result.getSuspensionTime()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("Should unsuspend user when rentalService reports no penalty")
+        void synchronizeSuspension_NoPenalty() {
+            UUID userId = UUID.randomUUID();
+            User existingUser = new TestUser();
+            existingUser.setId(userId);
+            existingUser.setEmail("test@smartlockr.com");
+            existingUser.setFullName("Test");
+            existingUser.setSuspended(true);
+            existingUser.setSuspensionTime(Instant.now());
+            existingUser.setUserPreferences(UserPreferences.builder()
+                    .receiveReceipts(true)
+                    .receivesPromotions(true)
+                    .build());
+
+            when(userRepository.findByEmail("test@smartlockr.com")).thenReturn(Optional.of(existingUser));
+            when(rentalService.hasPenalizedRentalForUser(userId)).thenReturn(false);
+
+            OidcUser oidcUser = mockOidcUser("test@smartlockr.com", "Test", "pic.png");
+
+            User result = authenticationService.findOrCreateUser(oidcUser);
+
+            assertThat(result.isSuspended()).isFalse();
+            assertThat(result.getSuspensionTime()).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("Operation: Clear Cookies")
+    class ClearCookiesTests {
+
+        @Test
+        @DisplayName("Should delegate to CookieFactory.clean")
+        void shouldDelegateToCookieFactory() {
+            ResponseCookie expected = ResponseCookie.from("auth_token", "")
+                    .path("/")
+                    .maxAge(0)
+                    .build();
+            when(cookieFactory.clean("auth_token")).thenReturn(expected);
+
+            ResponseCookie result = authenticationService.clearCookies("auth_token");
+
+            assertThat(result).isEqualTo(expected);
+            verify(cookieFactory).clean("auth_token");
+        }
+    }
+
+    @Nested
+    @DisplayName("Operation: Revoke Refresh Token")
+    class RevokeRefreshTokenTests {
+
+        @Test
+        @DisplayName("Should delegate revocation to RefreshTokenService")
+        void shouldDelegateToRefreshTokenService() {
+            authenticationService.revokeRefreshToken("some-token");
+
+            verify(refreshTokenService).revokeToken("some-token");
+        }
+    }
 }
