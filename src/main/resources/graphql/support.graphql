@@ -1,0 +1,46 @@
+extend type Query {
+    adminGetTickets(status: TicketStatus): [Ticket!]!
+    adminGetTicket(ticketId: ID!): Ticket!
+}
+
+extend type Mutation {
+    reportProblem(input: ReportProblemInput!): Ticket!
+    adminUpdateTicketStatus(input: UpdateTicketStatusInput!): Ticket!
+}
+
+type Ticket {
+    id: ID!
+    userId: ID!
+    subject: String!
+    description: String!
+    rentalId: ID
+    status: TicketStatus!
+    priority: TicketPriority!
+    createdAt: String!
+    updatedAt: String!
+}
+
+input ReportProblemInput {
+    subject: String!
+    description: String!
+    rentalId: ID
+    priority: TicketPriority
+}
+
+input UpdateTicketStatusInput {
+    ticketId: ID!
+    status: TicketStatus!
+}
+
+enum TicketStatus {
+    OPEN
+    IN_PROGRESS
+    RESOLVED
+    CLOSED
+}
+
+enum TicketPriority {
+    LOW
+    MEDIUM
+    HIGH
+}
