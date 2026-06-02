@@ -1,6 +1,6 @@
 # SmartLockr Backend Core
 
-![Project Status](https://img.shields.io/badge/status-in%20development-CC3E2B?style=flat-square&labelColor=24292E&logo=github&logoColor=white)
+![Project Status](https://img.shields.io/badge/status-stable-007EC6?style=flat-square&labelColor=24292E&logo=github&logoColor=white)
 ![Docker Image Version](https://img.shields.io/docker/v/santasoft/smartlockr-back?sort=date&style=flat-square&labelColor=24292E&color=000000&logo=docker&logoColor=white)
 
 
