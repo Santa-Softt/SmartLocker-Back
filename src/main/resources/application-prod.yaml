@@ -7,6 +7,6 @@ spring:
     hibernate:
       ddl-auto: validate
 management:
-   endpoint:
+  endpoint:
     health:
       show-details: when-authorized

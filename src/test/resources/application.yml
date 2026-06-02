@@ -1,4 +1,6 @@
 spring:
+  profiles:
+    active: test
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
@@ -11,11 +13,13 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
 # Dummy Configuration
 security:
+  csrf-enabled: false
   secret-b64: "EWS99dPxGwUiFSBXEV8ZHF7OUpHN0_qXB46ryvpQf0u0ETGm_B__aaxex54t5K35pd3OlqCjjDzNgDbOuqxIVw=="
   audience: "test-audience"
   issuer: "test-issuer"
@@ -28,7 +32,13 @@ security:
     secure: false
     same-site: "Lax"
 smartlockr:
-  allowed-origins: "*"
+  allowed-origins: "http://localhost"
+  seed:
+    enabled: false
+  scheduling:
+    enabled: false
+  messaging:
+    email-fallback-to-smtp: true
 mercadopago:
   access-token: "APP-USER-1234...1234.."
   webhook-secret: "some_secret_webhook"
