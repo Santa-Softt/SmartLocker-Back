@@ -34,3 +34,33 @@ build/
 
 ### ENV FILES ###
 *.env
+.env
+.env.*
+!.env.example
+
+### LOCAL APPLICATION CONFIG ###
+application-local.yml
+application-local.yaml
+application-local.properties
+src/main/resources/application-local.yml
+src/main/resources/application-local.yaml
+src/main/resources/application-local.properties
+
+### SECRETS ###
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+*.crt
+
+### LOGS & TEMP ###
+logs/
+*.log
+tmp/
+temp/
+*.tmp
+
+### OS FILES ###
+.DS_Store
+Thumbs.db

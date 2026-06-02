@@ -12,9 +12,35 @@ COPY src ./src
 RUN --mount=type=cache,target=/root/.m2 \
     mvn -B -DskipTests clean package
 
-# Extracción de las capas del JAR usando el modo layertools nativo de Spring Boot
+# Extracción de las capas del JAR usando el modo tools nativo de Spring Boot
 # Esto optimiza drásticamente el uso de caché de Docker en la subida a registries
-RUN java -Djarmode=layertools -jar target/*.jar extract --destination target/extracted
+RUN java -Djarmode=tools -jar target/*.jar extract --layers --launcher --destination target/extracted
+
+# ---------- OPTIONAL STAGE: GraalVM Native Builder ----------
+# Build explicitly with: docker build --target native-runtime -t santasoft/smartlockr-back:native .
+FROM ghcr.io/graalvm/native-image-community:25 AS native-builder
+WORKDIR /build
+
+COPY pom.xml ./
+COPY src ./src
+COPY .mvn ./.mvn
+COPY mvnw ./
+RUN --mount=type=cache,target=/root/.m2 \
+    chmod +x mvnw && ./mvnw -B -Pnative -DskipTests native:compile
+
+
+# ---------- OPTIONAL STAGE: Native Runtime ----------
+FROM alpine:3.23.3 AS native-runtime
+RUN apk add --no-cache curl ca-certificates tzdata && \
+    addgroup -S spring && \
+    adduser -u 1000 -S -G spring spring
+WORKDIR /app
+COPY --from=native-builder --chown=spring:spring /build/target/smartlockr ./smartlockr
+USER spring
+EXPOSE 8080 9090
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD curl -f http://127.0.0.1:9090/actuator/health || exit 1
+ENTRYPOINT ["./smartlockr"]
 
 
 # ---------- STAGE 2: Custom JRE Builder (Minimización y Hardening) ----------
