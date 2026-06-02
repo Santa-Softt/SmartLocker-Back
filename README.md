@@ -5,7 +5,7 @@
 
 
 ![Java](https://img.shields.io/badge/Java-25-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.11-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.14-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Multistage-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Architecture-DDD_%7C_Modular_Monolith-blueviolet?style=for-the-badge)
 ![GraphQL](https://img.shields.io/badge/GraphQL-Spring-E10098?style=for-the-badge&logo=graphql&logoColor=white)
@@ -43,7 +43,7 @@ Permite a los operadores:
 5. [Configuración (vars.env)](#-configuración-varsenv)
 6. [Instalación y Ejecución](#-instalación-y-ejecución)
 7. [Documentación API](#-documentación-api)
-8. [Manejo de Errores](#-manejo-de-errores)
+8. [Manejo de Errores](#%EF%B8%8F-manejo-de-errores)
 
 ---
 
