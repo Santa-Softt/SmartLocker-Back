@@ -2,6 +2,7 @@ package com.smartlockr.iam.infrastructure.persistence.model;
 
 import com.smartlockr.iam.domain.enums.Role;
 import com.smartlockr.rental.infrastructure.persistence.entity.model.Rental;
+import com.smartlockr.shared.infrastructure.persistence.UuidV7ValueGenerator;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
@@ -20,7 +21,7 @@ import java.util.*;
 @EqualsAndHashCode(of = "id")
 public class User {
     @Id
-    @UuidGenerator
+    @UuidGenerator(algorithm = UuidV7ValueGenerator.class)
     private UUID id;
 
     @Column(name= "full_name", nullable = false, length = 100)

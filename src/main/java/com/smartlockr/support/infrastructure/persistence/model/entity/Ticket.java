@@ -1,6 +1,7 @@
 package com.smartlockr.support.infrastructure.persistence.model.entity;
 
 import com.smartlockr.iam.infrastructure.persistence.model.User;
+import com.smartlockr.shared.infrastructure.persistence.UuidV7ValueGenerator;
 import com.smartlockr.support.domain.enums.TicketPriority;
 import com.smartlockr.support.domain.enums.TicketStatus;
 import jakarta.persistence.*;
@@ -24,7 +25,7 @@ import java.util.UUID;
 public class Ticket {
 
     @Id
-    @UuidGenerator
+    @UuidGenerator(algorithm = UuidV7ValueGenerator.class)
     private UUID id;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)

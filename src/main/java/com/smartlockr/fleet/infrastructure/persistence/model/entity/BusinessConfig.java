@@ -3,6 +3,7 @@ package com.smartlockr.fleet.infrastructure.persistence.model.entity;
 import com.smartlockr.billing.infrastructure.persistence.model.entity.Rate;
 import com.smartlockr.fleet.domain.enums.ServiceStatus;
 import com.smartlockr.fleet.infrastructure.dto.UpdateBusinessConfigCommand;
+import com.smartlockr.shared.infrastructure.persistence.UuidV7ValueGenerator;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
@@ -20,7 +21,7 @@ import java.util.UUID;
 @Table(name = "business_configs")
 public class BusinessConfig {
     @Id
-    @UuidGenerator
+    @UuidGenerator(algorithm = UuidV7ValueGenerator.class)
     private UUID id;
     private int holdDurationSeconds;
 

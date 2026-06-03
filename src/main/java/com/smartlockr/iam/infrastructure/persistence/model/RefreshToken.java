@@ -1,5 +1,6 @@
 package com.smartlockr.iam.infrastructure.persistence.model;
 
+import com.smartlockr.shared.infrastructure.persistence.UuidV7ValueGenerator;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -21,7 +22,7 @@ import java.util.UUID;
 @EqualsAndHashCode(of = "id")
 public class RefreshToken {
 
-    @UuidGenerator
+    @UuidGenerator(algorithm = UuidV7ValueGenerator.class)
     @Id
     private UUID id;
 
