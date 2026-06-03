@@ -77,7 +77,7 @@ class PricingServiceTest {
 
     private BusinessConfigSnapshot configWithRates(List<RateSnapshot> rates) {
         return new BusinessConfigSnapshot(
-                UUID.randomUUID(),
+                com.smartlockr.shared.utils.UuidV7.generate(),
                 300,
                 15,
                 1440,

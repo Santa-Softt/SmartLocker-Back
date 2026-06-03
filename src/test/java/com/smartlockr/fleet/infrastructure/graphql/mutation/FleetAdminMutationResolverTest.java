@@ -42,7 +42,7 @@ class FleetAdminMutationResolverTest {
     @Test
     @DisplayName("adminUpdateLockerState - delega en fleetService.updateLockerState")
     void shouldDelegateLockerStateUpdate() {
-        UUID lockerId = UUID.randomUUID();
+        UUID lockerId = com.smartlockr.shared.utils.UuidV7.generate();
         var input = new UpdateLockerStateInput(lockerId, LockerState.MAINTENANCE);
         var response = new LockerResponse(lockerId, "L-1", LockerSize.M, LockerState.MAINTENANCE, BigDecimal.TEN);
         given(fleetService.updateLockerState(lockerId, LockerState.MAINTENANCE)).willReturn(response);
@@ -60,7 +60,7 @@ class FleetAdminMutationResolverTest {
         var input = new UpdateBusinessConfigInput(
                 300, 15, 1440, 10, 5, 5, ServiceStatus.OPERATIONAL, rates);
         var snapshot = new BusinessConfigSnapshot(
-                UUID.randomUUID(), 300, 15, 1440, 10, 5, 5,
+                com.smartlockr.shared.utils.UuidV7.generate(), 300, 15, 1440, 10, 5, 5,
                 ServiceStatus.OPERATIONAL, List.of());
         given(businessService.updateActiveBusinessConfig(ArgumentMatchers.any())).willReturn(snapshot);
 

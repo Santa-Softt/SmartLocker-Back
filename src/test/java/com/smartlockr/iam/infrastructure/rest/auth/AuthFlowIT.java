@@ -107,7 +107,7 @@ class AuthFlowIT extends BaseIntegrationTest {
     void expired_jwt_behaviour() throws Exception {
         // arrange
         var user = new TestUser();
-        user.setId(UUID.randomUUID());
+        user.setId(com.smartlockr.shared.utils.UuidV7.generate());
         user.setFullName("Expired User");
         user.setEmail("expired@gmail.com");
         user.setRole(Role.CONSUMER);

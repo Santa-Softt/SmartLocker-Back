@@ -40,7 +40,7 @@ class FleetAdminQueryResolverTest {
     void shouldDelegateFindLockersToFleetService() {
         var size = LockerSize.M;
         var state = LockerState.AVAILABLE;
-        var lockers = List.of(new LockerResponse(UUID.randomUUID(), "L-1", size, state, BigDecimal.TEN));
+        var lockers = List.of(new LockerResponse(com.smartlockr.shared.utils.UuidV7.generate(), "L-1", size, state, BigDecimal.TEN));
         given(fleetService.findLockersForAdmin(size, state)).willReturn(lockers);
 
         var result = resolver.adminGetLockers(size, state);
@@ -53,7 +53,7 @@ class FleetAdminQueryResolverTest {
     @DisplayName("adminGetBusinessConfig - delega en businessService.getActiveBusinessConfig")
     void shouldReturnActiveBusinessConfig() {
         var snapshot = new BusinessConfigSnapshot(
-                UUID.randomUUID(), 300, 15, 1440, 10, 5, 5,
+                com.smartlockr.shared.utils.UuidV7.generate(), 300, 15, 1440, 10, 5, 5,
                 ServiceStatus.OPERATIONAL, List.of());
         given(businessService.getActiveBusinessConfig()).willReturn(snapshot);
 

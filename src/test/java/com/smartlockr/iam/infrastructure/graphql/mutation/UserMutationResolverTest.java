@@ -32,7 +32,7 @@ class UserMutationResolverTest {
     @Test
     @DisplayName("updateUserSettings - delega en UserService con input y jwt")
     void shouldDelegateUpdateUserSettings() {
-        UUID userId = UUID.randomUUID();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         Jwt jwt = jwt(userId);
         var input = new UpdateUserSettings("New Name", "https://avatar.io", true, true, false);
         var expected = new UserResponse(userId, "New Name", "user@test.local", "https://avatar.io",

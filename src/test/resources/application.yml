@@ -13,6 +13,8 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+  flyway:
+    enabled: false
   rabbitmq:
     listener:
       simple:
@@ -33,8 +35,6 @@ security:
     same-site: "Lax"
 smartlockr:
   allowed-origins: "http://localhost"
-  seed:
-    enabled: false
   scheduling:
     enabled: false
   messaging:

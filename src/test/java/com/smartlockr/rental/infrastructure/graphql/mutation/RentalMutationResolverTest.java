@@ -52,7 +52,7 @@ class RentalMutationResolverTest {
     @DisplayName("initiateHold - delegates authenticated request")
     void shouldDelegateInitiateHold() {
         RentalResponse expected = new RentalResponse(
-                UUID.randomUUID(),
+                com.smartlockr.shared.utils.UuidV7.generate(),
                 null,
                 Instant.now(),
                 Instant.now().plusSeconds(60),
@@ -71,8 +71,8 @@ class RentalMutationResolverTest {
     @Test
     @DisplayName("cancelLockerHold - delegates authenticated request")
     void shouldDelegateCancelHold() {
-        UUID userId = UUID.randomUUID();
-        UUID rentalId = UUID.randomUUID();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
         RentalHoldResponse expected = new RentalHoldResponse("ok");
         given(jwt.getSubject()).willReturn(userId.toString());
         given(rentalService.cancelUserHold(rentalId, userId)).willReturn(expected);
@@ -83,8 +83,8 @@ class RentalMutationResolverTest {
     @Test
     @DisplayName("releaseLocker - delegates authenticated request")
     void shouldDelegateReleaseLocker() {
-        UUID userId = UUID.randomUUID();
-        UUID rentalId = UUID.randomUUID();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
         RentalHoldResponse expected = new RentalHoldResponse("ok");
         given(jwt.getSubject()).willReturn(userId.toString());
         given(rentalService.releaseLocker(rentalId, userId)).willReturn(expected);
@@ -95,8 +95,8 @@ class RentalMutationResolverTest {
     @Test
     @DisplayName("createExtensionPaymentOrder - delegates authenticated request")
     void shouldDelegateCreateExtensionPaymentOrder() {
-        UUID userId = UUID.randomUUID();
-        UUID rentalId = UUID.randomUUID();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
         PaymentLinkResponse expected = new PaymentLinkResponse("https://pay.test");
         given(jwt.getSubject()).willReturn(userId.toString());
         given(rentalService.createExtensionPaymentOrder(rentalId, userId, 30)).willReturn(expected);

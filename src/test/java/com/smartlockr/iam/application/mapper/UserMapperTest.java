@@ -69,7 +69,7 @@ class UserMapperTest {
     void shouldMapUserToUserResponse() {
         var prefs = new UserPreferences(true, false);
         var user = User.builder()
-                .id(java.util.UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .fullName("Jane Doe")
                 .email("jane@test.local")
                 .avatarUrl("avatar.png")

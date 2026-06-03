@@ -34,7 +34,7 @@ class UpdateTicketStatusInputTest {
     @Test
     @DisplayName("input valido - sin violaciones")
     void shouldBeValidForValidInput() {
-        UpdateTicketStatusInput input = new UpdateTicketStatusInput(UUID.randomUUID(), TicketStatus.CLOSED);
+        UpdateTicketStatusInput input = new UpdateTicketStatusInput(com.smartlockr.shared.utils.UuidV7.generate(), TicketStatus.CLOSED);
 
         Set<ConstraintViolation<UpdateTicketStatusInput>> violations = validator.validate(input);
 
@@ -55,7 +55,7 @@ class UpdateTicketStatusInputTest {
     @Test
     @DisplayName("status null - viola @NotNull")
     void shouldRejectNullStatus() {
-        UpdateTicketStatusInput input = new UpdateTicketStatusInput(UUID.randomUUID(), null);
+        UpdateTicketStatusInput input = new UpdateTicketStatusInput(com.smartlockr.shared.utils.UuidV7.generate(), null);
 
         Set<ConstraintViolation<UpdateTicketStatusInput>> violations = validator.validate(input);
 

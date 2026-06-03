@@ -36,11 +36,11 @@ class SupportAdminMutationResolverTest {
     @Test
     @DisplayName("adminUpdateTicketStatus - delega en SupportService con adminId del JWT")
     void shouldDelegateUpdateTicketStatus() {
-        UUID adminId = UUID.randomUUID();
-        UUID ticketId = UUID.randomUUID();
+        UUID adminId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID ticketId = com.smartlockr.shared.utils.UuidV7.generate();
         Jwt jwt = jwt(adminId);
         var input = new UpdateTicketStatusInput(ticketId, TicketStatus.CLOSED);
-        var expected = new TicketResponse(ticketId, UUID.randomUUID(), "Subj", "Desc", null,
+        var expected = new TicketResponse(ticketId, com.smartlockr.shared.utils.UuidV7.generate(), "Subj", "Desc", null,
                 TicketStatus.CLOSED, com.smartlockr.support.domain.enums.TicketPriority.MEDIUM,
                 Instant.now(), Instant.now());
         given(supportService.updateTicketStatus(input, adminId)).willReturn(expected);
@@ -54,7 +54,7 @@ class SupportAdminMutationResolverTest {
     @Test
     @DisplayName("adminUpdateTicketStatus - jwt null lanza AccessDeniedException")
     void shouldThrowAccessDeniedWhenJwtIsNull() {
-        var input = new UpdateTicketStatusInput(UUID.randomUUID(), TicketStatus.CLOSED);
+        var input = new UpdateTicketStatusInput(com.smartlockr.shared.utils.UuidV7.generate(), TicketStatus.CLOSED);
 
         assertThatThrownBy(() -> resolver.adminUpdateTicketStatus(input, null))
                 .isInstanceOf(AccessDeniedException.class)

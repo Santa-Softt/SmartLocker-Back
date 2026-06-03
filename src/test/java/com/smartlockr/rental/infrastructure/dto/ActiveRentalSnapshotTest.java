@@ -18,8 +18,8 @@ class ActiveRentalSnapshotTest {
     @DisplayName("constructor y accessors devuelven los mismos valores")
     void shouldExposeAllFields() {
         // GIVEN
-        UUID rentalId = UUID.randomUUID();
-        UUID lockerId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID lockerId = com.smartlockr.shared.utils.UuidV7.generate();
         Instant start = Instant.parse("2026-01-01T10:00:00Z");
         Instant end = Instant.parse("2026-01-01T12:00:00Z");
         BigDecimal cost = new BigDecimal("99.99");
@@ -47,7 +47,7 @@ class ActiveRentalSnapshotTest {
     @DisplayName("permite campos nulos para lockers y cost")
     void shouldAllowNullLockerFields() {
         ActiveRentalSnapshot snapshot = new ActiveRentalSnapshot(
-                UUID.randomUUID(), RentalState.HOLD,
+                com.smartlockr.shared.utils.UuidV7.generate(), RentalState.HOLD,
                 null, null, null, null,
                 Instant.now(), Instant.now().plusSeconds(60),
                 null, false);
@@ -63,7 +63,7 @@ class ActiveRentalSnapshotTest {
     @Test
     @DisplayName("equals/hashCode se basan en los componentes del record")
     void shouldRespectRecordEquality() {
-        UUID rentalId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
         Instant now = Instant.now();
         ActiveRentalSnapshot a = new ActiveRentalSnapshot(
                 rentalId, RentalState.ACTIVE, null, null, null, null, now, now, BigDecimal.ONE, false);

@@ -34,7 +34,7 @@ class UserServiceUnitTest {
     private final UserMapper userMapper = Mappers.getMapper(UserMapper.class);
     private UserService userService;
 
-    private final UUID userId = UUID.randomUUID();
+    private final UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
     @Mock
     private Jwt jwt;
 

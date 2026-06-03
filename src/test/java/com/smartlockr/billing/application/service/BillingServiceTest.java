@@ -145,19 +145,19 @@ class BillingServiceTest {
     @Test
     @DisplayName("processPaymentNotification - confirms initial payment and sends receipt when allowed")
     void shouldConfirmInitialPaymentAndSendReceipt() throws Exception {
-        UUID rentalId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
         String paymentId = "12345";
         String lockKey = "payment_processed:" + paymentId;
         BigDecimal amountPaid = BigDecimal.valueOf(150);
         User user = User.builder()
-                .id(UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .email("user@test.local")
                 .fullName("User Test")
                 .role(Role.CONSUMER)
                 .userPreferences(new UserPreferences(true, false))
                 .build();
         Locker locker = Locker.builder()
-                .id(UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .label("M-01")
                 .size(LockerSize.M)
                 .state(LockerState.HOLD)
@@ -198,8 +198,8 @@ class BillingServiceTest {
     @Test
     @DisplayName("createPaymentOrder - happy path: crea preferencia de pago para rental en HOLD")
     void shouldCreatePaymentOrderForHoldRental() throws Exception {
-        UUID rentalId = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         User user = User.builder()
                 .id(userId)
                 .email("u@test.local")
@@ -208,7 +208,7 @@ class BillingServiceTest {
                 .userPreferences(new UserPreferences(true, false))
                 .build();
         Locker locker = Locker.builder()
-                .id(UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .label("L-1")
                 .size(LockerSize.M)
                 .state(LockerState.HOLD)
@@ -229,7 +229,7 @@ class BillingServiceTest {
         given(rentalRepository.findById(rentalId)).willReturn(Optional.of(rental));
         given(businessService.getActiveBusinessConfig()).willReturn(
                 new com.smartlockr.fleet.infrastructure.dto.BusinessConfigSnapshot(
-                        UUID.randomUUID(), 300, 15, 1440, 10, 5, 5,
+                        com.smartlockr.shared.utils.UuidV7.generate(), 300, 15, 1440, 10, 5, 5,
                         com.smartlockr.fleet.domain.enums.ServiceStatus.OPERATIONAL, List.of()));
         given(preferenceClient.create(org.mockito.ArgumentMatchers.any())).willReturn(preference);
 
@@ -242,10 +242,10 @@ class BillingServiceTest {
     @Test
     @DisplayName("createPaymentOrder - rental no encontrado lanza IllegalArgumentException")
     void shouldThrowWhenRentalNotFoundOnCreatePaymentOrder() {
-        UUID rentalId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
         given(rentalRepository.findById(rentalId)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> billingService.createPaymentOrder(rentalId, UUID.randomUUID()))
+        assertThatThrownBy(() -> billingService.createPaymentOrder(rentalId, com.smartlockr.shared.utils.UuidV7.generate()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Rental no encontrado");
     }
@@ -253,14 +253,14 @@ class BillingServiceTest {
     @Test
     @DisplayName("createPaymentOrder - rental de otro usuario lanza AccessDeniedException")
     void shouldRejectCreatePaymentOrderFromOtherUser() {
-        UUID rentalId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
         User otherUser = User.builder()
-                .id(UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .email("other@test.local")
                 .role(Role.CONSUMER)
                 .build();
         Locker locker = Locker.builder()
-                .id(UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .label("L-1")
                 .size(LockerSize.M)
                 .state(LockerState.HOLD)
@@ -275,18 +275,18 @@ class BillingServiceTest {
                 .build();
         given(rentalRepository.findById(rentalId)).willReturn(Optional.of(rental));
 
-        assertThatThrownBy(() -> billingService.createPaymentOrder(rentalId, UUID.randomUUID()))
+        assertThatThrownBy(() -> billingService.createPaymentOrder(rentalId, com.smartlockr.shared.utils.UuidV7.generate()))
                 .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
     }
 
     @Test
     @DisplayName("createPaymentOrder - rental en estado distinto de HOLD lanza RentFailedException")
     void shouldRejectCreatePaymentOrderWhenNotInHold() {
-        UUID rentalId = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         User user = User.builder().id(userId).email("u@t.com").role(Role.CONSUMER).build();
         Locker locker = Locker.builder()
-                .id(UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .label("L-1")
                 .size(LockerSize.M)
                 .state(LockerState.OCCUPIED)
@@ -308,11 +308,11 @@ class BillingServiceTest {
     @Test
     @DisplayName("createExtensionPaymentOrder - happy path")
     void shouldCreateExtensionPaymentOrder() throws Exception {
-        UUID rentalId = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         User user = User.builder().id(userId).email("u@t.com").role(Role.CONSUMER).build();
         Locker locker = Locker.builder()
-                .id(UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .label("L-1")
                 .size(LockerSize.M)
                 .state(LockerState.OCCUPIED)
@@ -332,7 +332,7 @@ class BillingServiceTest {
         given(rentalRepository.findById(rentalId)).willReturn(Optional.of(rental));
         given(businessService.getActiveBusinessConfig()).willReturn(
                 new com.smartlockr.fleet.infrastructure.dto.BusinessConfigSnapshot(
-                        UUID.randomUUID(), 300, 15, 1440, 10, 5, 5,
+                        com.smartlockr.shared.utils.UuidV7.generate(), 300, 15, 1440, 10, 5, 5,
                         com.smartlockr.fleet.domain.enums.ServiceStatus.OPERATIONAL, List.of()));
         given(preferenceClient.create(org.mockito.ArgumentMatchers.any())).willReturn(preference);
 
@@ -344,11 +344,11 @@ class BillingServiceTest {
     @Test
     @DisplayName("createExtensionPaymentOrder - extension <= 0 lanza RentFailedException")
     void shouldRejectNonPositiveExtension() {
-        UUID rentalId = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         User user = User.builder().id(userId).email("u@t.com").role(Role.CONSUMER).build();
         Locker locker = Locker.builder()
-                .id(UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .label("L-1")
                 .size(LockerSize.M)
                 .state(LockerState.OCCUPIED)
@@ -370,11 +370,11 @@ class BillingServiceTest {
     @Test
     @DisplayName("createExtensionPaymentOrder - rental no ACTIVE lanza RentFailedException")
     void shouldRejectExtensionWhenNotActive() {
-        UUID rentalId = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         User user = User.builder().id(userId).email("u@t.com").role(Role.CONSUMER).build();
         Locker locker = Locker.builder()
-                .id(UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .label("L-1")
                 .size(LockerSize.M)
                 .state(LockerState.HOLD)
@@ -396,11 +396,11 @@ class BillingServiceTest {
     @Test
     @DisplayName("createPenaltyPaymentOrder - happy path calcula monto y crea preferencia")
     void shouldCreatePenaltyPaymentOrder() throws Exception {
-        UUID rentalId = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         User user = User.builder().id(userId).email("u@t.com").role(Role.CONSUMER).build();
         Locker locker = Locker.builder()
-                .id(UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .label("L-1")
                 .size(LockerSize.M)
                 .state(LockerState.OCCUPIED)
@@ -421,7 +421,7 @@ class BillingServiceTest {
         given(rentalRepository.findById(rentalId)).willReturn(Optional.of(rental));
         given(businessService.getActiveBusinessConfig()).willReturn(
                 new com.smartlockr.fleet.infrastructure.dto.BusinessConfigSnapshot(
-                        UUID.randomUUID(), 300, 15, 1440, 10, 5, 5,
+                        com.smartlockr.shared.utils.UuidV7.generate(), 300, 15, 1440, 10, 5, 5,
                         com.smartlockr.fleet.domain.enums.ServiceStatus.OPERATIONAL, List.of()));
         given(preferenceClient.create(org.mockito.ArgumentMatchers.any())).willReturn(preference);
 
@@ -433,11 +433,11 @@ class BillingServiceTest {
     @Test
     @DisplayName("createPenaltyPaymentOrder - rental no PENALIZED lanza RentFailedException")
     void shouldRejectPenaltyWhenNotPenalized() {
-        UUID rentalId = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         User user = User.builder().id(userId).email("u@t.com").role(Role.CONSUMER).build();
         Locker locker = Locker.builder()
-                .id(UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .label("L-1")
                 .size(LockerSize.M)
                 .state(LockerState.OCCUPIED)
@@ -526,7 +526,7 @@ class BillingServiceTest {
     void shouldReleaseLockWhenExtensionRentalNotFound() throws Exception {
         String paymentId = "12345";
         String lockKey = "payment_processed:" + paymentId;
-        UUID rentalId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
         Payment payment = mock(Payment.class);
 
         enableRedisValueOperations();
@@ -550,12 +550,12 @@ class BillingServiceTest {
     void shouldExtendActiveRentalOnApprovedExtension() throws Exception {
         String paymentId = "12345";
         String lockKey = "payment_processed:" + paymentId;
-        UUID rentalId = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         User user = User.builder().id(userId).email("u@t.com").role(Role.CONSUMER)
                 .userPreferences(new UserPreferences(false, false)).build();
         Locker locker = Locker.builder()
-                .id(UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .label("L-1")
                 .size(LockerSize.M)
                 .state(LockerState.OCCUPIED)
@@ -590,12 +590,12 @@ class BillingServiceTest {
     void shouldCompletePenalizedRentalOnApprovedPenalty() throws Exception {
         String paymentId = "12345";
         String lockKey = "payment_processed:" + paymentId;
-        UUID rentalId = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         User user = User.builder().id(userId).email("u@t.com").role(Role.CONSUMER)
                 .userPreferences(new UserPreferences(false, false)).build();
         Locker locker = Locker.builder()
-                .id(UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .label("L-1")
                 .size(LockerSize.M)
                 .state(LockerState.OCCUPIED)

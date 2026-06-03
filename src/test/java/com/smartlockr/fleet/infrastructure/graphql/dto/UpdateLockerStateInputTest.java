@@ -34,7 +34,7 @@ class UpdateLockerStateInputTest {
     @Test
     @DisplayName("input valido - sin violaciones")
     void shouldBeValidForValidInput() {
-        UpdateLockerStateInput input = new UpdateLockerStateInput(UUID.randomUUID(), LockerState.MAINTENANCE);
+        UpdateLockerStateInput input = new UpdateLockerStateInput(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.MAINTENANCE);
 
         Set<ConstraintViolation<UpdateLockerStateInput>> violations = validator.validate(input);
 
@@ -55,7 +55,7 @@ class UpdateLockerStateInputTest {
     @Test
     @DisplayName("state null - viola @NotNull")
     void shouldRejectNullState() {
-        UpdateLockerStateInput input = new UpdateLockerStateInput(UUID.randomUUID(), null);
+        UpdateLockerStateInput input = new UpdateLockerStateInput(com.smartlockr.shared.utils.UuidV7.generate(), null);
 
         Set<ConstraintViolation<UpdateLockerStateInput>> violations = validator.validate(input);
 
