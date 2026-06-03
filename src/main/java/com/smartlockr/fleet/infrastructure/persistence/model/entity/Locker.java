@@ -3,6 +3,7 @@ package com.smartlockr.fleet.infrastructure.persistence.model.entity;
 import com.smartlockr.fleet.domain.enums.LockerSize;
 import com.smartlockr.fleet.domain.enums.LockerState;
 import com.smartlockr.rental.infrastructure.persistence.entity.model.Rental;
+import com.smartlockr.shared.infrastructure.persistence.UuidV7ValueGenerator;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
@@ -20,7 +21,7 @@ import java.util.UUID;
         indexes = {
                 @Index(name = "idx_locker_allocation", columnList = "size, state")})
 public class Locker {
-    @UuidGenerator
+    @UuidGenerator(algorithm = UuidV7ValueGenerator.class)
     @Id
     private UUID id;
     @Column(nullable = false, unique = true)

@@ -36,7 +36,7 @@ class BillingMutationResolverTest {
     @Test
     @DisplayName("createPaymentOrder - rejects unauthenticated users")
     void shouldRejectUnauthenticatedCreatePaymentOrder() {
-        assertThatThrownBy(() -> resolver.createPaymentOrder(UUID.randomUUID(), null))
+        assertThatThrownBy(() -> resolver.createPaymentOrder(com.smartlockr.shared.utils.UuidV7.generate(), null))
                 .isInstanceOf(AccessDeniedException.class);
 
         verifyNoInteractions(billingService);
@@ -45,8 +45,8 @@ class BillingMutationResolverTest {
     @Test
     @DisplayName("createPaymentOrder - delegates authenticated users")
     void shouldDelegateCreatePaymentOrder() {
-        UUID userId = UUID.randomUUID();
-        UUID rentalId = UUID.randomUUID();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
         PaymentLinkResponse expected = new PaymentLinkResponse("https://pay.test");
         given(jwt.getSubject()).willReturn(userId.toString());
         given(billingService.createPaymentOrder(rentalId, userId)).willReturn(expected);
@@ -57,8 +57,8 @@ class BillingMutationResolverTest {
     @Test
     @DisplayName("createPenaltyPaymentOrder - delegates authenticated users")
     void shouldDelegatePenaltyPaymentOrder() {
-        UUID userId = UUID.randomUUID();
-        UUID rentalId = UUID.randomUUID();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
         PaymentLinkResponse expected = new PaymentLinkResponse("https://pay.test/penalty");
         given(jwt.getSubject()).willReturn(userId.toString());
         given(billingService.createPenaltyPaymentOrder(rentalId, userId)).willReturn(expected);

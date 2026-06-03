@@ -56,7 +56,7 @@ class GoogleSuccessHandlerTest {
 
     @BeforeEach
     void setUp() {
-        UUID userId = UUID.randomUUID();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         user = new TestUser();
         user.setId(userId);
         user.setEmail("test_email@gmail.com");

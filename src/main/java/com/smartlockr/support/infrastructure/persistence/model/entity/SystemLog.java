@@ -1,6 +1,7 @@
 package com.smartlockr.support.infrastructure.persistence.model.entity;
 
 import com.smartlockr.iam.infrastructure.persistence.model.User;
+import com.smartlockr.shared.infrastructure.persistence.UuidV7ValueGenerator;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
@@ -22,7 +23,7 @@ import java.util.UUID;
 public class SystemLog {
 
     @Id
-    @UuidGenerator
+    @UuidGenerator(algorithm = UuidV7ValueGenerator.class)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)

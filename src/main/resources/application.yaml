@@ -58,6 +58,28 @@ spring:
     hikari:
       connection-timeout: 20000
       maximum-pool-size: 20
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: ${SPRING_FLYWAY_BASELINE_ON_MIGRATE:false}
+    placeholders:
+      admin_email: ${ADMIN_EMAIL:admin@smartlockr.com}
+      business_hold_duration_seconds: ${BUSINESS_HOLD_DURATION_SECONDS:240}
+      business_min_rental_duration_minutes: ${BUSINESS_MIN_RENTAL_DURATION_MINUTES:15}
+      business_max_rental_duration_minutes: ${BUSINESS_MAX_RENTAL_DURATION_MINUTES:10800}
+      business_penalty_percentage: ${BUSINESS_PENALTY_PERCENTAGE:50}
+      business_streak_discount_percentage: ${BUSINESS_STREAK_DISCOUNT_PERCENTAGE:10}
+      business_streak_threshold: ${BUSINESS_STREAK_THRESHOLD:7}
+      business_rate_xs: ${BUSINESS_RATE_XS:1600}
+      business_rate_s: ${BUSINESS_RATE_S:2300}
+      business_rate_m: ${BUSINESS_RATE_M:3800}
+      business_rate_l: ${BUSINESS_RATE_L:4900}
+      business_rate_xl: ${BUSINESS_RATE_XL:6150}
+      locker_quantity_xs: ${LOCKER_QUANTITY_XS:128}
+      locker_quantity_s: ${LOCKER_QUANTITY_S:80}
+      locker_quantity_m: ${LOCKER_QUANTITY_M:72}
+      locker_quantity_l: ${LOCKER_QUANTITY_L:64}
+      locker_quantity_xl: ${LOCKER_QUANTITY_XL:0}
   mail:
     host: ${SMTP_HOST:localhost}
     port: ${SMTP_PORT:587}
@@ -115,8 +137,6 @@ security:
   csrf-enabled: ${SECURITY_CSRF_ENABLED:true}
 smartlockr:
   allowed-origins: ${ALLOWED_ORIGINS}
-  seed:
-    enabled: ${SMARTLOCKR_SEED_ENABLED:true}
   scheduling:
     enabled: ${SMARTLOCKR_SCHEDULING_ENABLED:true}
   email:
@@ -137,25 +157,6 @@ smartlockr:
         payment-webhook: ${RABBITMQ_PAYMENT_WEBHOOK_ROUTING_KEY:billing.payment.webhook.received}
         welcome-email: ${RABBITMQ_WELCOME_EMAIL_ROUTING_KEY:email.welcome.requested}
         payment-receipt: ${RABBITMQ_PAYMENT_RECEIPT_ROUTING_KEY:email.receipt.requested}
-  business:
-    max-hold-duration-seconds: 240
-    min-rental-duration-minutes: 15
-    max-rental-duration-minutes: 10800
-    rates:
-      XS: 1600
-      S: 2300
-      M: 3800
-      L: 4900
-      XL: 6150
-    quantities:
-      XS: 128
-      S: 80
-      M: 72
-      L: 64
-      XL: 0
-    penalty-percentage: 50
-    streak-discount-percentage: 10
-    streak-threshold: 7
 graphiql:
   public-access: ${DEV_GRAPHIQL}
 redis:

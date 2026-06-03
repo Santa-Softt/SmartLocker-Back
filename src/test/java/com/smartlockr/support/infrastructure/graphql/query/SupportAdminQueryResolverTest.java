@@ -32,7 +32,7 @@ class SupportAdminQueryResolverTest {
     @Test
     @DisplayName("adminGetTickets - delega en SupportService.findTicketsForAdmin")
     void shouldDelegateFindTickets() {
-        var t1 = new TicketResponse(UUID.randomUUID(), UUID.randomUUID(), "S", "D", null,
+        var t1 = new TicketResponse(com.smartlockr.shared.utils.UuidV7.generate(), com.smartlockr.shared.utils.UuidV7.generate(), "S", "D", null,
                 TicketStatus.OPEN, TicketPriority.MEDIUM, Instant.now(), Instant.now());
         given(supportService.findTicketsForAdmin(TicketStatus.OPEN)).willReturn(List.of(t1));
 
@@ -45,8 +45,8 @@ class SupportAdminQueryResolverTest {
     @Test
     @DisplayName("adminGetTicket - delega en SupportService.findTicketForAdmin con el id")
     void shouldDelegateFindTicket() {
-        UUID ticketId = UUID.randomUUID();
-        var t = new TicketResponse(ticketId, UUID.randomUUID(), "S", "D", null,
+        UUID ticketId = com.smartlockr.shared.utils.UuidV7.generate();
+        var t = new TicketResponse(ticketId, com.smartlockr.shared.utils.UuidV7.generate(), "S", "D", null,
                 TicketStatus.OPEN, TicketPriority.MEDIUM, Instant.now(), Instant.now());
         given(supportService.findTicketForAdmin(ticketId)).willReturn(t);
 
@@ -59,7 +59,7 @@ class SupportAdminQueryResolverTest {
     @Test
     @DisplayName("adminGetTicket - propaga EntityNotFoundException cuando el ticket no existe")
     void shouldPropagateEntityNotFound() {
-        UUID ticketId = UUID.randomUUID();
+        UUID ticketId = com.smartlockr.shared.utils.UuidV7.generate();
         given(supportService.findTicketForAdmin(ticketId))
                 .willThrow(new jakarta.persistence.EntityNotFoundException("Ticket not found: " + ticketId));
 

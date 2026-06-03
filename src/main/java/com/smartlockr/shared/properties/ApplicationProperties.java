@@ -20,7 +20,6 @@ import java.util.Set;
 public record ApplicationProperties(
         @NotEmpty
         Set<@NotBlank String> allowedOrigins,
-        @NotNull ToggleProperties seed,
         @NotNull ToggleProperties scheduling
 ) {
     public ApplicationProperties {

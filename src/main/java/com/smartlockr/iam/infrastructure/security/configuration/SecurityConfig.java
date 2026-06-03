@@ -31,6 +31,9 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    private static final String MERCADO_PAGO_WEBHOOK_PATH = "/api/v1/webhooks/mercadopago";
+    private static final String MERCADO_PAGO_WEBHOOK_SUBPATHS = "/api/v1/webhooks/mercadopago/**";
+
     @Value("${graphiql.public-access:false}")
     private boolean isPublicAccessEnabled;
 
@@ -51,7 +54,7 @@ public class SecurityConfig {
                 .csrf(csrf -> {
                     if (securityProperties.csrfEnabled()) {
                         csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                                .ignoringRequestMatchers("/api/v1/webhooks/mercadopago");
+                                .ignoringRequestMatchers(MERCADO_PAGO_WEBHOOK_PATH, MERCADO_PAGO_WEBHOOK_SUBPATHS);
                     } else {
                         csrf.disable();
                     }
@@ -65,7 +68,7 @@ public class SecurityConfig {
                     if (isPublicAccessEnabled)
                         authorize.requestMatchers("/graphiql", "/graphql").permitAll();
                     authorize.requestMatchers("/auth/refresh").permitAll()
-                            .requestMatchers("/api/v1/webhooks/mercadopago").permitAll()
+                            .requestMatchers(MERCADO_PAGO_WEBHOOK_PATH, MERCADO_PAGO_WEBHOOK_SUBPATHS).permitAll()
                             .requestMatchers("/actuator/health", "/actuator/prometheus").permitAll()
                             .anyRequest().authenticated();
                 })

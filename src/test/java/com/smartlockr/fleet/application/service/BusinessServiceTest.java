@@ -89,19 +89,9 @@ class BusinessServiceTest {
         then(repository).should().save(config);
     }
 
-    @Test
-    @DisplayName("saveConfig - delegates persistence")
-    void shouldSaveConfig() {
-        BusinessConfig config = config();
-
-        service.saveConfig(config);
-
-        then(repository).should().save(config);
-    }
-
     private BusinessConfig config() {
         return BusinessConfig.builder()
-                .id(UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .holdDurationSeconds(300)
                 .minRentalDurationMinutes(15)
                 .maxRentalDurationMinutes(1440)

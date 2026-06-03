@@ -3,6 +3,7 @@ package com.smartlockr.rental.infrastructure.persistence.entity.model;
 import com.smartlockr.fleet.infrastructure.persistence.model.entity.Locker;
 import com.smartlockr.iam.infrastructure.persistence.model.User;
 import com.smartlockr.rental.domain.enums.RentalState;
+import com.smartlockr.shared.infrastructure.persistence.UuidV7ValueGenerator;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
@@ -27,7 +28,7 @@ import java.util.UUID;
                 @Index(name = "idx_rental_state_start_time", columnList = "state, start_time")
         })
 public class Rental {
-    @UuidGenerator
+    @UuidGenerator(algorithm = UuidV7ValueGenerator.class)
     @Id
     private UUID id;
     @Enumerated(EnumType.STRING)

@@ -62,7 +62,7 @@ class SmtpEmailAdapterTest {
         adapter.sendPaymentReceipt(new PaymentReceiptEmailMessage(
                 "user@test.local",
                 "",
-                UUID.randomUUID(),
+                com.smartlockr.shared.utils.UuidV7.generate(),
                 null,
                 null,
                 null,
@@ -79,7 +79,7 @@ class SmtpEmailAdapterTest {
     @Test
     @DisplayName("sendPaymentReceipt - formats amount and timestamps")
     void shouldFormatReceiptFields() {
-        UUID rentalId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
 
         adapter.sendPaymentReceipt(new PaymentReceiptEmailMessage(
                 "user@test.local",

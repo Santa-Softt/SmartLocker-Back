@@ -19,7 +19,7 @@ class RentalExpirationListenerTest {
     void shouldExpireHoldRental() {
         RentalService rentalService = mock(RentalService.class);
         RentalExpirationListener listener = new RentalExpirationListener(rentalService);
-        UUID rentalId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
 
         listener.handleRedisKeyExpired(event("hold:rental:" + rentalId));
 
@@ -31,7 +31,7 @@ class RentalExpirationListenerTest {
     void shouldApplyPenaltyToActiveRental() {
         RentalService rentalService = mock(RentalService.class);
         RentalExpirationListener listener = new RentalExpirationListener(rentalService);
-        UUID rentalId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
 
         listener.handleRedisKeyExpired(event("\"active:rental:" + rentalId + "\""));
 

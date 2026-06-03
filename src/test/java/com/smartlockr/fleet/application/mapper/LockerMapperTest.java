@@ -31,8 +31,8 @@ class LockerMapperTest {
     @Test
     @DisplayName("toResponseList - mapea lista de Lockers a lista de LockerResponse")
     void shouldMapLockerList() {
-        var l1 = new Locker(UUID.randomUUID(), "L-1", LockerSize.M, LockerState.AVAILABLE, null);
-        var l2 = new Locker(UUID.randomUUID(), "L-2", LockerSize.L, LockerState.OCCUPIED, null);
+        var l1 = new Locker(com.smartlockr.shared.utils.UuidV7.generate(), "L-1", LockerSize.M, LockerState.AVAILABLE, null);
+        var l2 = new Locker(com.smartlockr.shared.utils.UuidV7.generate(), "L-2", LockerSize.L, LockerState.OCCUPIED, null);
 
         List<LockerResponse> result = lockerMapper.toResponseList(List.of(l1, l2));
 
@@ -46,7 +46,7 @@ class LockerMapperTest {
     @Test
     @DisplayName("toResponse - mapea un Locker individual a LockerResponse con hourlyRate null")
     void shouldMapIndividualLockerWithNullHourlyRate() {
-        var l = new Locker(UUID.randomUUID(), "L-1", LockerSize.S, LockerState.MAINTENANCE, null);
+        var l = new Locker(com.smartlockr.shared.utils.UuidV7.generate(), "L-1", LockerSize.S, LockerState.MAINTENANCE, null);
 
         LockerResponse response = lockerMapper.toResponse(l);
 
@@ -72,7 +72,7 @@ class LockerMapperTest {
     @Test
     @DisplayName("toUpdateResponse - mapea LockerStateChangedEvent a LockerUpdateResponse")
     void shouldMapLockerEventToUpdateResponse() {
-        UUID lockerId = UUID.randomUUID();
+        UUID lockerId = com.smartlockr.shared.utils.UuidV7.generate();
         var event = new LockerStateChangedEvent(lockerId, LockerState.HOLD);
 
         LockerUpdateResponse response = lockerMapper.toUpdateResponse(event);

@@ -66,7 +66,7 @@ class LockerSubscriptionResolverIT extends BaseIntegrationTest {
         doReturn(lockerEventSink.asFlux())
                 .when(lockerEventListener).getEventStream();
 
-        UUID lockerId = UUID.randomUUID();
+        UUID lockerId = com.smartlockr.shared.utils.UuidV7.generate();
         LockerUpdateResponse mockResponse = new LockerUpdateResponse(lockerId, LockerState.OCCUPIED);
 
         when(lockerMapper.toUpdateResponse(any(LockerStateChangedEvent.class))).thenReturn(mockResponse);
@@ -106,7 +106,7 @@ class LockerSubscriptionResolverIT extends BaseIntegrationTest {
                 .executeSubscription()
                 .toFlux("onLockerStateChange", LockerUpdateResponse.class);
 
-        LockerStateChangedEvent mockEvent = new LockerStateChangedEvent(UUID.randomUUID(), LockerState.OCCUPIED);
+        LockerStateChangedEvent mockEvent = new LockerStateChangedEvent(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.OCCUPIED);
 
         StepVerifier.create(resultFlux)
                 .then(() -> lockerEventSink.tryEmitNext(mockEvent))

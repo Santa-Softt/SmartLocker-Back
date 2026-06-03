@@ -54,14 +54,14 @@ class SupportServiceTest {
     @Test
     @DisplayName("reportProblem - happy path persiste ticket y registra audit log")
     void shouldPersistTicketAndAuditLog() {
-        UUID userId = UUID.randomUUID();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         User user = user(userId);
-        var input = new ReportProblemInput("Locker broken", "Door stuck", UUID.randomUUID(), TicketPriority.HIGH);
+        var input = new ReportProblemInput("Locker broken", "Door stuck", com.smartlockr.shared.utils.UuidV7.generate(), TicketPriority.HIGH);
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(ticketRepository.save(any(Ticket.class))).willAnswer(inv -> {
             Ticket t = inv.getArgument(0);
-            t.setId(UUID.randomUUID());
+            t.setId(com.smartlockr.shared.utils.UuidV7.generate());
             t.setCreatedAt(java.time.Instant.now());
             t.setUpdatedAt(java.time.Instant.now());
             return t;
@@ -81,14 +81,14 @@ class SupportServiceTest {
     @Test
     @DisplayName("reportProblem - prioridad null usa MEDIUM por defecto")
     void shouldDefaultToMediumPriority() {
-        UUID userId = UUID.randomUUID();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         User user = user(userId);
-        var input = new ReportProblemInput("Subject", "Description", UUID.randomUUID(), null);
+        var input = new ReportProblemInput("Subject", "Description", com.smartlockr.shared.utils.UuidV7.generate(), null);
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(ticketRepository.save(any(Ticket.class))).willAnswer(inv -> {
             Ticket t = inv.getArgument(0);
-            t.setId(UUID.randomUUID());
+            t.setId(com.smartlockr.shared.utils.UuidV7.generate());
             t.setCreatedAt(java.time.Instant.now());
             t.setUpdatedAt(java.time.Instant.now());
             return t;
@@ -102,8 +102,8 @@ class SupportServiceTest {
     @Test
     @DisplayName("reportProblem - usuario inexistente lanza UsernameNotFoundException")
     void shouldThrowWhenUserNotFound() {
-        UUID userId = UUID.randomUUID();
-        var input = new ReportProblemInput("Subject", "Description", UUID.randomUUID(), TicketPriority.LOW);
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
+        var input = new ReportProblemInput("Subject", "Description", com.smartlockr.shared.utils.UuidV7.generate(), TicketPriority.LOW);
         given(userRepository.findById(userId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> supportService.reportProblem(input, userId))
@@ -115,8 +115,8 @@ class SupportServiceTest {
     @Test
     @DisplayName("findTicketsForAdmin - sin filtro devuelve todos los tickets")
     void shouldReturnAllTicketsWhenStatusIsNull() {
-        Ticket t1 = ticket(UUID.randomUUID(), TicketStatus.OPEN);
-        Ticket t2 = ticket(UUID.randomUUID(), TicketStatus.CLOSED);
+        Ticket t1 = ticket(com.smartlockr.shared.utils.UuidV7.generate(), TicketStatus.OPEN);
+        Ticket t2 = ticket(com.smartlockr.shared.utils.UuidV7.generate(), TicketStatus.CLOSED);
         given(ticketRepository.findAllByOrderByCreatedAtDesc()).willReturn(List.of(t1, t2));
 
         var result = supportService.findTicketsForAdmin(null);
@@ -128,7 +128,7 @@ class SupportServiceTest {
     @Test
     @DisplayName("findTicketsForAdmin - con status filtra por estado")
     void shouldFilterTicketsByStatus() {
-        Ticket t1 = ticket(UUID.randomUUID(), TicketStatus.OPEN);
+        Ticket t1 = ticket(com.smartlockr.shared.utils.UuidV7.generate(), TicketStatus.OPEN);
         given(ticketRepository.findByStatusOrderByCreatedAtDesc(TicketStatus.OPEN)).willReturn(List.of(t1));
 
         var result = supportService.findTicketsForAdmin(TicketStatus.OPEN);
@@ -140,7 +140,7 @@ class SupportServiceTest {
     @Test
     @DisplayName("findTicketForAdmin - existente devuelve respuesta")
     void shouldReturnTicketWhenFound() {
-        UUID ticketId = UUID.randomUUID();
+        UUID ticketId = com.smartlockr.shared.utils.UuidV7.generate();
         Ticket t = ticket(ticketId, TicketStatus.OPEN);
         given(ticketRepository.findWithUserById(ticketId)).willReturn(Optional.of(t));
 
@@ -153,7 +153,7 @@ class SupportServiceTest {
     @Test
     @DisplayName("findTicketForAdmin - no encontrado lanza EntityNotFoundException")
     void shouldThrowWhenTicketNotFound() {
-        UUID ticketId = UUID.randomUUID();
+        UUID ticketId = com.smartlockr.shared.utils.UuidV7.generate();
         given(ticketRepository.findWithUserById(ticketId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> supportService.findTicketForAdmin(ticketId))
@@ -164,8 +164,8 @@ class SupportServiceTest {
     @Test
     @DisplayName("updateTicketStatus - happy path cambia estado y registra audit log")
     void shouldUpdateTicketStatus() {
-        UUID ticketId = UUID.randomUUID();
-        UUID adminId = UUID.randomUUID();
+        UUID ticketId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID adminId = com.smartlockr.shared.utils.UuidV7.generate();
         User admin = user(adminId);
         admin.setRole(Role.ADMIN);
         Ticket ticket = ticket(ticketId, TicketStatus.OPEN);
@@ -186,8 +186,8 @@ class SupportServiceTest {
     @Test
     @DisplayName("updateTicketStatus - admin no encontrado lanza UsernameNotFoundException")
     void shouldThrowWhenAdminNotFound() {
-        UUID adminId = UUID.randomUUID();
-        var input = new UpdateTicketStatusInput(UUID.randomUUID(), TicketStatus.CLOSED);
+        UUID adminId = com.smartlockr.shared.utils.UuidV7.generate();
+        var input = new UpdateTicketStatusInput(com.smartlockr.shared.utils.UuidV7.generate(), TicketStatus.CLOSED);
         given(userRepository.findById(adminId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> supportService.updateTicketStatus(input, adminId))
@@ -199,8 +199,8 @@ class SupportServiceTest {
     @Test
     @DisplayName("updateTicketStatus - ticket no encontrado lanza EntityNotFoundException")
     void shouldThrowWhenTicketNotFoundOnUpdate() {
-        UUID adminId = UUID.randomUUID();
-        UUID ticketId = UUID.randomUUID();
+        UUID adminId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID ticketId = com.smartlockr.shared.utils.UuidV7.generate();
         User admin = user(adminId);
         var input = new UpdateTicketStatusInput(ticketId, TicketStatus.CLOSED);
 
@@ -230,7 +230,7 @@ class SupportServiceTest {
                 .priority(TicketPriority.MEDIUM)
                 .createdAt(java.time.Instant.now())
                 .updatedAt(java.time.Instant.now())
-                .user(user(UUID.randomUUID()))
+                .user(user(com.smartlockr.shared.utils.UuidV7.generate()))
                 .build();
     }
 }

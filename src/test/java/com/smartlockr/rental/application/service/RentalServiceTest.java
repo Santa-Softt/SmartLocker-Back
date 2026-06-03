@@ -99,10 +99,10 @@ class RentalServiceTest {
     @Test
     @DisplayName("processExpiredHolds - cancels expired holds and releases lockers")
     void shouldCancelExpiredHoldsAndReleaseLockers() {
-        Locker firstLocker = locker(UUID.randomUUID(), LockerState.HOLD);
-        Locker secondLocker = locker(UUID.randomUUID(), LockerState.HOLD);
-        Rental firstRental = rental(RentalState.HOLD, user(UUID.randomUUID()), firstLocker);
-        Rental secondRental = rental(RentalState.HOLD, user(UUID.randomUUID()), secondLocker);
+        Locker firstLocker = locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.HOLD);
+        Locker secondLocker = locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.HOLD);
+        Rental firstRental = rental(RentalState.HOLD, user(com.smartlockr.shared.utils.UuidV7.generate()), firstLocker);
+        Rental secondRental = rental(RentalState.HOLD, user(com.smartlockr.shared.utils.UuidV7.generate()), secondLocker);
 
         given(businessService.getActiveBusinessConfig()).willReturn(config());
         given(rentalRepository.findAllByStateAndStartTimeBefore(org.mockito.ArgumentMatchers.eq(RentalState.HOLD), org.mockito.ArgumentMatchers.any(Instant.class)))
@@ -120,7 +120,7 @@ class RentalServiceTest {
     @Test
     @DisplayName("processExpiredRentalsToPenalty - penalizes active rentals past end time")
     void shouldPenalizeExpiredActiveRentals() {
-        Rental rental = rental(RentalState.ACTIVE, user(UUID.randomUUID()), locker(UUID.randomUUID(), LockerState.OCCUPIED));
+        Rental rental = rental(RentalState.ACTIVE, user(com.smartlockr.shared.utils.UuidV7.generate()), locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.OCCUPIED));
         given(rentalRepository.findAllByStateAndEstimatedEndTimeBefore(org.mockito.ArgumentMatchers.eq(RentalState.ACTIVE), org.mockito.ArgumentMatchers.any(Instant.class)))
                 .willReturn(List.of(rental));
 
@@ -134,9 +134,9 @@ class RentalServiceTest {
     @Test
     @DisplayName("releaseLocker - completes active rental and frees locker")
     void shouldReleaseActiveLocker() {
-        UUID userId = UUID.randomUUID();
-        UUID rentalId = UUID.randomUUID();
-        Locker locker = locker(UUID.randomUUID(), LockerState.OCCUPIED);
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        Locker locker = locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.OCCUPIED);
         Rental rental = rental(RentalState.ACTIVE, user(userId), locker);
         rental.setId(rentalId);
 
@@ -155,20 +155,20 @@ class RentalServiceTest {
     @Test
     @DisplayName("releaseLocker - rejects rentals from other users")
     void shouldRejectReleaseForDifferentUser() {
-        UUID rentalId = UUID.randomUUID();
-        Rental rental = rental(RentalState.ACTIVE, user(UUID.randomUUID()), locker(UUID.randomUUID(), LockerState.OCCUPIED));
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        Rental rental = rental(RentalState.ACTIVE, user(com.smartlockr.shared.utils.UuidV7.generate()), locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.OCCUPIED));
         given(rentalRepository.findById(rentalId)).willReturn(Optional.of(rental));
 
-        assertThatThrownBy(() -> rentalService.releaseLocker(rentalId, UUID.randomUUID()))
+        assertThatThrownBy(() -> rentalService.releaseLocker(rentalId, com.smartlockr.shared.utils.UuidV7.generate()))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
     @DisplayName("releaseLocker - rejects non-active rentals")
     void shouldRejectReleaseForNonActiveRental() {
-        UUID userId = UUID.randomUUID();
-        UUID rentalId = UUID.randomUUID();
-        Rental rental = rental(RentalState.HOLD, user(userId), locker(UUID.randomUUID(), LockerState.HOLD));
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        Rental rental = rental(RentalState.HOLD, user(userId), locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.HOLD));
         given(rentalRepository.findById(rentalId)).willReturn(Optional.of(rental));
 
         assertThatThrownBy(() -> rentalService.releaseLocker(rentalId, userId))
@@ -179,9 +179,9 @@ class RentalServiceTest {
     @Test
     @DisplayName("createExtensionPaymentOrder - validates duration and delegates to billing")
     void shouldCreateExtensionPaymentOrder() {
-        UUID userId = UUID.randomUUID();
-        UUID rentalId = UUID.randomUUID();
-        Rental rental = rental(RentalState.ACTIVE, user(userId), locker(UUID.randomUUID(), LockerState.OCCUPIED));
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        Rental rental = rental(RentalState.ACTIVE, user(userId), locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.OCCUPIED));
         PaymentLinkResponse expected = new PaymentLinkResponse("https://pay.test");
 
         given(rentalRepository.findById(rentalId)).willReturn(Optional.of(rental));
@@ -198,11 +198,11 @@ class RentalServiceTest {
     @Test
     @DisplayName("initiateHold - happy path: reserva locker, persiste rental, registra key en Redis")
     void shouldInitiateHoldWithRedisAvailable() {
-        UUID userId = UUID.randomUUID();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         User user = user(userId);
-        Locker locker = locker(UUID.randomUUID(), LockerState.AVAILABLE);
+        Locker locker = locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.AVAILABLE);
         Rental savedRental = rental(RentalState.HOLD, user, locker);
-        savedRental.setId(UUID.randomUUID());
+        savedRental.setId(com.smartlockr.shared.utils.UuidV7.generate());
 
         given(businessService.getActiveBusinessConfig()).willReturn(config());
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
@@ -227,9 +227,9 @@ class RentalServiceTest {
     @Test
     @DisplayName("initiateHold - Redis no disponible omite el set del TTL")
     void shouldInitiateHoldWithoutRedisAvailability() {
-        UUID userId = UUID.randomUUID();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         User user = user(userId);
-        Locker locker = locker(UUID.randomUUID(), LockerState.AVAILABLE);
+        Locker locker = locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.AVAILABLE);
         Rental savedRental = rental(RentalState.HOLD, user, locker);
 
         given(businessService.getActiveBusinessConfig()).willReturn(config());
@@ -268,7 +268,7 @@ class RentalServiceTest {
     @Test
     @DisplayName("initiateHold - duracion <= 0 lanza IllegalArgumentException")
     void shouldRejectNonPositiveDurationOnInitiateHold() {
-        assertThatThrownBy(() -> rentalService.initiateHold(LockerSize.M, UUID.randomUUID().toString(), 0))
+        assertThatThrownBy(() -> rentalService.initiateHold(LockerSize.M, com.smartlockr.shared.utils.UuidV7.generate().toString(), 0))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("mayor a 0");
     }
@@ -278,7 +278,7 @@ class RentalServiceTest {
     void shouldRejectOutOfRangeDurationOnInitiateHold() {
         given(businessService.getActiveBusinessConfig()).willReturn(config());
 
-        assertThatThrownBy(() -> rentalService.initiateHold(LockerSize.M, UUID.randomUUID().toString(), 9999))
+        assertThatThrownBy(() -> rentalService.initiateHold(LockerSize.M, com.smartlockr.shared.utils.UuidV7.generate().toString(), 9999))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("fuera del rango");
     }
@@ -286,7 +286,7 @@ class RentalServiceTest {
     @Test
     @DisplayName("initiateHold - usuario inexistente lanza UsernameNotFoundException")
     void shouldThrowWhenUserNotFoundOnInitiateHold() {
-        UUID userId = UUID.randomUUID();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         given(businessService.getActiveBusinessConfig()).willReturn(config());
         given(userRepository.findById(userId)).willReturn(Optional.empty());
 
@@ -297,9 +297,9 @@ class RentalServiceTest {
     @Test
     @DisplayName("cancelUserHold - cancela rental en HOLD, libera locker y borra key de Redis")
     void shouldCancelHoldAndReleaseLocker() {
-        UUID rentalId = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
-        Locker locker = locker(UUID.randomUUID(), LockerState.HOLD);
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
+        Locker locker = locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.HOLD);
         Rental rental = rental(RentalState.HOLD, user(userId), locker);
         rental.setId(rentalId);
 
@@ -318,10 +318,10 @@ class RentalServiceTest {
     @Test
     @DisplayName("cancelUserHold - rental no encontrado lanza IllegalArgumentException")
     void shouldThrowWhenRentalNotFoundOnCancel() {
-        UUID rentalId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
         given(rentalRepository.findById(rentalId)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> rentalService.cancelUserHold(rentalId, UUID.randomUUID()))
+        assertThatThrownBy(() -> rentalService.cancelUserHold(rentalId, com.smartlockr.shared.utils.UuidV7.generate()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Rental not found");
     }
@@ -329,9 +329,9 @@ class RentalServiceTest {
     @Test
     @DisplayName("cancelUserHold - rental no esta en HOLD lanza IllegalLockerChangeStateException")
     void shouldRejectCancelWhenNotInHold() {
-        UUID rentalId = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
-        Rental rental = rental(RentalState.ACTIVE, user(userId), locker(UUID.randomUUID(), LockerState.OCCUPIED));
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
+        Rental rental = rental(RentalState.ACTIVE, user(userId), locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.OCCUPIED));
         given(rentalRepository.findById(rentalId)).willReturn(Optional.of(rental));
 
         assertThatThrownBy(() -> rentalService.cancelUserHold(rentalId, userId))
@@ -341,20 +341,20 @@ class RentalServiceTest {
     @Test
     @DisplayName("cancelUserHold - rental de otro usuario lanza AccessDeniedException")
     void shouldRejectCancelFromOtherUser() {
-        UUID rentalId = UUID.randomUUID();
-        Rental rental = rental(RentalState.HOLD, user(UUID.randomUUID()), locker(UUID.randomUUID(), LockerState.HOLD));
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        Rental rental = rental(RentalState.HOLD, user(com.smartlockr.shared.utils.UuidV7.generate()), locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.HOLD));
         given(rentalRepository.findById(rentalId)).willReturn(Optional.of(rental));
 
-        assertThatThrownBy(() -> rentalService.cancelUserHold(rentalId, UUID.randomUUID()))
+        assertThatThrownBy(() -> rentalService.cancelUserHold(rentalId, com.smartlockr.shared.utils.UuidV7.generate()))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
     @DisplayName("expireSystemHold - cancela rental y libera locker si esta en HOLD")
     void shouldExpireSystemHoldWhenInHoldState() {
-        UUID rentalId = UUID.randomUUID();
-        Locker locker = locker(UUID.randomUUID(), LockerState.HOLD);
-        Rental rental = rental(RentalState.HOLD, user(UUID.randomUUID()), locker);
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        Locker locker = locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.HOLD);
+        Rental rental = rental(RentalState.HOLD, user(com.smartlockr.shared.utils.UuidV7.generate()), locker);
         rental.setId(rentalId);
 
         given(rentalRepository.findById(rentalId)).willReturn(Optional.of(rental));
@@ -369,8 +369,8 @@ class RentalServiceTest {
     @Test
     @DisplayName("expireSystemHold - no hace nada si el rental no esta en HOLD")
     void shouldNotExpireSystemHoldWhenNotInHold() {
-        UUID rentalId = UUID.randomUUID();
-        Rental rental = rental(RentalState.ACTIVE, user(UUID.randomUUID()), locker(UUID.randomUUID(), LockerState.OCCUPIED));
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        Rental rental = rental(RentalState.ACTIVE, user(com.smartlockr.shared.utils.UuidV7.generate()), locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.OCCUPIED));
 
         given(rentalRepository.findById(rentalId)).willReturn(Optional.of(rental));
 
@@ -383,8 +383,8 @@ class RentalServiceTest {
     @Test
     @DisplayName("applyPenaltyToRental - penaliza rental ACTIVE")
     void shouldApplyPenaltyToActiveRental() {
-        UUID rentalId = UUID.randomUUID();
-        Rental rental = rental(RentalState.ACTIVE, user(UUID.randomUUID()), locker(UUID.randomUUID(), LockerState.OCCUPIED));
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        Rental rental = rental(RentalState.ACTIVE, user(com.smartlockr.shared.utils.UuidV7.generate()), locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.OCCUPIED));
         rental.setId(rentalId);
 
         given(rentalRepository.findById(rentalId)).willReturn(Optional.of(rental));
@@ -399,8 +399,8 @@ class RentalServiceTest {
     @Test
     @DisplayName("applyPenaltyToRental - no hace nada si el rental no esta en ACTIVE")
     void shouldNotApplyPenaltyWhenNotActive() {
-        UUID rentalId = UUID.randomUUID();
-        Rental rental = rental(RentalState.HOLD, user(UUID.randomUUID()), locker(UUID.randomUUID(), LockerState.HOLD));
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
+        Rental rental = rental(RentalState.HOLD, user(com.smartlockr.shared.utils.UuidV7.generate()), locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.HOLD));
 
         given(rentalRepository.findById(rentalId)).willReturn(Optional.of(rental));
 
@@ -412,10 +412,10 @@ class RentalServiceTest {
     @Test
     @DisplayName("findActiveRentalForUser - devuelve snapshot cuando existe rental ACTIVE o PENALIZED")
     void shouldReturnActiveRentalSnapshotWhenExists() {
-        UUID userId = UUID.randomUUID();
-        Locker locker = locker(UUID.randomUUID(), LockerState.OCCUPIED);
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
+        Locker locker = locker(com.smartlockr.shared.utils.UuidV7.generate(), LockerState.OCCUPIED);
         Rental rental = rental(RentalState.ACTIVE, user(userId), locker);
-        rental.setId(UUID.randomUUID());
+        rental.setId(com.smartlockr.shared.utils.UuidV7.generate());
 
         given(rentalRepository.findByUserIdAndStateIn(userId, List.of(RentalState.ACTIVE, RentalState.PENALIZED)))
                 .willReturn(Optional.of(rental));
@@ -436,7 +436,7 @@ class RentalServiceTest {
     @Test
     @DisplayName("hasPenalizedRentalForUser - devuelve true si existe rental PENALIZED")
     void shouldReturnTrueWhenPenalizedRentalExists() {
-        UUID userId = UUID.randomUUID();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
         given(rentalRepository.existsByUserIdAndState(userId, RentalState.PENALIZED)).willReturn(true);
 
         assertThat(rentalService.hasPenalizedRentalForUser(userId)).isTrue();
@@ -468,7 +468,7 @@ class RentalServiceTest {
 
     private BusinessConfigSnapshot config() {
         return new BusinessConfigSnapshot(
-                UUID.randomUUID(),
+                com.smartlockr.shared.utils.UuidV7.generate(),
                 300,
                 15,
                 1440,
@@ -500,7 +500,7 @@ class RentalServiceTest {
 
     private Rental rental(RentalState state, User user, Locker locker) {
         return Rental.builder()
-                .id(UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .state(state)
                 .startTime(Instant.now().minusSeconds(600))
                 .estimatedEndTime(Instant.now().plusSeconds(600))

@@ -42,15 +42,19 @@ class SupportServicePostgresTest extends PostgresContainerIntegrationTest {
                 .suspended(false)
                 .userPreferences(new UserPreferences(true, false))
                 .build());
+        assertThat(user.getId().version()).isEqualTo(7);
 
-        UUID rentalId = UUID.randomUUID();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
         var input = new ReportProblemInput("Locker blocked", "The locker door is stuck.", rentalId, TicketPriority.HIGH);
 
         var response = supportService.reportProblem(input, user.getId());
 
         assertThat(response.id()).isNotNull();
+        assertThat(response.id().version()).isEqualTo(7);
         assertThat(response.status()).isEqualTo(TicketStatus.OPEN);
         assertThat(ticketRepository.findById(response.id())).isPresent();
-        assertThat(systemLogRepository.findAll()).hasSize(1);
+        assertThat(systemLogRepository.findAll())
+                .hasSize(1)
+                .allSatisfy(log -> assertThat(log.getId().version()).isEqualTo(7));
     }
 }

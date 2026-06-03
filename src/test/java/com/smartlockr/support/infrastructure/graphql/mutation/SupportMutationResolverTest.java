@@ -38,11 +38,11 @@ class SupportMutationResolverTest {
     @Test
     @DisplayName("reportProblem - delega en SupportService con el userId del JWT")
     void shouldDelegateReportProblem() {
-        UUID userId = UUID.randomUUID();
-        UUID rentalId = UUID.randomUUID();
+        UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
+        UUID rentalId = com.smartlockr.shared.utils.UuidV7.generate();
         Jwt jwt = jwt(userId);
         var input = new ReportProblemInput("Subj", "Desc", rentalId, TicketPriority.HIGH);
-        var expected = new TicketResponse(UUID.randomUUID(), userId, "Subj", "Desc", rentalId,
+        var expected = new TicketResponse(com.smartlockr.shared.utils.UuidV7.generate(), userId, "Subj", "Desc", rentalId,
                 TicketStatus.OPEN, TicketPriority.HIGH, Instant.now(), Instant.now());
         given(supportService.reportProblem(input, userId)).willReturn(expected);
 
@@ -55,7 +55,7 @@ class SupportMutationResolverTest {
     @Test
     @DisplayName("reportProblem - jwt null lanza AccessDeniedException")
     void shouldThrowAccessDeniedWhenJwtIsNull() {
-        var input = new ReportProblemInput("Subj", "Desc", UUID.randomUUID(), TicketPriority.LOW);
+        var input = new ReportProblemInput("Subj", "Desc", com.smartlockr.shared.utils.UuidV7.generate(), TicketPriority.LOW);
 
         assertThatThrownBy(() -> resolver.reportProblem(input, null))
                 .isInstanceOf(AccessDeniedException.class)

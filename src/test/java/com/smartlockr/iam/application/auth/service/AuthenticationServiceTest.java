@@ -164,7 +164,7 @@ class AuthenticationServiceTest {
         @Test
         @DisplayName("Should throw exception when user ID not found via UserService")
         void getLoggedUserData_NotFound() {
-            UUID id = UUID.randomUUID();
+            UUID id = com.smartlockr.shared.utils.UuidV7.generate();
             Instant expiresAt = Instant.now().plusSeconds(100L);
 
             when(userService.getUserResponse(id)).thenThrow(new UsernameNotFoundException("El usuario no existe"));
@@ -180,7 +180,7 @@ class AuthenticationServiceTest {
         @DisplayName("Should return session data when user exists via UserService")
         void getLoggedUserData_Success() {
             // Arrange
-            UUID id = UUID.randomUUID();
+            UUID id = com.smartlockr.shared.utils.UuidV7.generate();
             Instant expiresAt = Instant.now().plusSeconds(300L);
 
             UserResponse userResponse = new UserResponse(
@@ -235,7 +235,7 @@ class AuthenticationServiceTest {
         @Test
         @DisplayName("Should suspend user when rentalService reports pending penalty")
         void synchronizeSuspension_WithPenalty() {
-            UUID userId = UUID.randomUUID();
+            UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
             User existingUser = new TestUser();
             existingUser.setId(userId);
             existingUser.setEmail("test@smartlockr.com");
@@ -259,7 +259,7 @@ class AuthenticationServiceTest {
         @Test
         @DisplayName("Should unsuspend user when rentalService reports no penalty")
         void synchronizeSuspension_NoPenalty() {
-            UUID userId = UUID.randomUUID();
+            UUID userId = com.smartlockr.shared.utils.UuidV7.generate();
             User existingUser = new TestUser();
             existingUser.setId(userId);
             existingUser.setEmail("test@smartlockr.com");

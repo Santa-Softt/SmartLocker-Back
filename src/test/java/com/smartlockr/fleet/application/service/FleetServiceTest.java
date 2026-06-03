@@ -75,7 +75,7 @@ class FleetServiceTest {
     void shouldReturnLockerResponsesWhenFindingAvailableLockersBySize() {
         // Given
         var size = LockerSize.M;
-        var lockerId = UUID.randomUUID();
+        var lockerId = com.smartlockr.shared.utils.UuidV7.generate();
         var mockLockers = List.of(
                 new Locker(lockerId, "L1", LockerSize.M, LockerState.AVAILABLE, null)
         );
@@ -107,7 +107,7 @@ class FleetServiceTest {
     void shouldReserveFirstAvailableLockerWhenReservingForHold() {
         // Given
         var size = LockerSize.L;
-        var lockerId = UUID.randomUUID();
+        var lockerId = com.smartlockr.shared.utils.UuidV7.generate();
         var locker = new Locker(lockerId, "L1", size, LockerState.AVAILABLE, null);
         var limit = Limit.of(1);
 
@@ -148,7 +148,7 @@ class FleetServiceTest {
     @DisplayName("releaseLockerFromHold - releases locker and publishes AVAILABLE state event")
     void shouldReleaseLockerFromHoldToAvailable() {
         // Given
-        var lockerId = UUID.randomUUID();
+        var lockerId = com.smartlockr.shared.utils.UuidV7.generate();
 
         given(lockerRepository.releaseLockerFromHold(lockerId, LockerState.HOLD, LockerState.AVAILABLE))
                 .willReturn(1);
@@ -168,7 +168,7 @@ class FleetServiceTest {
     @DisplayName("releaseLockerFromHold - does not publish event when locker is not in HOLD state")
     void shouldNotReleaseLockerIfStateIsNotHold() {
         // Given
-        var lockerId = UUID.randomUUID();
+        var lockerId = com.smartlockr.shared.utils.UuidV7.generate();
 
         given(lockerRepository.releaseLockerFromHold(lockerId, LockerState.HOLD, LockerState.AVAILABLE))
                 .willReturn(0);
@@ -195,7 +195,7 @@ class FleetServiceTest {
     @DisplayName("releaseLockerFromHold - does not publish event when locker ID does not exist")
     void shouldNotPublishEventWhenReleasingNonExistentLocker() {
         // Given
-        var nonExistentId = UUID.randomUUID();
+        var nonExistentId = com.smartlockr.shared.utils.UuidV7.generate();
 
         given(lockerRepository.releaseLockerFromHold(nonExistentId, LockerState.HOLD, LockerState.AVAILABLE))
                 .willReturn(0);
@@ -225,7 +225,7 @@ class FleetServiceTest {
         var expectedSummaries = List.of(mockSummaryM, mockSummaryL);
 
         var mockConfig = new BusinessConfigSnapshot(
-                UUID.randomUUID(),
+                com.smartlockr.shared.utils.UuidV7.generate(),
                 300,
                 5,
                 1440,
@@ -257,7 +257,7 @@ class FleetServiceTest {
     void shouldFilterBySizeAndStateForAdmin() {
         var size = LockerSize.M;
         var state = LockerState.AVAILABLE;
-        var locker = new Locker(UUID.randomUUID(), "L-1", size, state, null);
+        var locker = new Locker(com.smartlockr.shared.utils.UuidV7.generate(), "L-1", size, state, null);
         var response = new LockerResponse(locker.getId(), "L-1", size, state, BigDecimal.TEN);
 
         given(lockerRepository.findBySizeAndStateOrderByLabelAsc(size, state))
@@ -274,7 +274,7 @@ class FleetServiceTest {
     @DisplayName("findLockersForAdmin - solo size filtra por tamano")
     void shouldFilterBySizeOnlyForAdmin() {
         var size = LockerSize.L;
-        var locker = new Locker(UUID.randomUUID(), "L-2", size, LockerState.AVAILABLE, null);
+        var locker = new Locker(com.smartlockr.shared.utils.UuidV7.generate(), "L-2", size, LockerState.AVAILABLE, null);
         var response = new LockerResponse(locker.getId(), "L-2", size, LockerState.AVAILABLE, BigDecimal.TEN);
 
         given(lockerRepository.findBySizeOrderByLabelAsc(size)).willReturn(List.of(locker));
@@ -290,7 +290,7 @@ class FleetServiceTest {
     @DisplayName("findLockersForAdmin - solo state filtra por estado")
     void shouldFilterByStateOnlyForAdmin() {
         var state = LockerState.MAINTENANCE;
-        var locker = new Locker(UUID.randomUUID(), "L-3", LockerSize.M, state, null);
+        var locker = new Locker(com.smartlockr.shared.utils.UuidV7.generate(), "L-3", LockerSize.M, state, null);
         var response = new LockerResponse(locker.getId(), "L-3", LockerSize.M, state, BigDecimal.TEN);
 
         given(lockerRepository.findByStateOrderByLabelAsc(state)).willReturn(List.of(locker));
@@ -305,7 +305,7 @@ class FleetServiceTest {
     @Test
     @DisplayName("findLockersForAdmin - sin filtros devuelve todos los lockers")
     void shouldReturnAllLockersWhenNoFilterForAdmin() {
-        var locker = new Locker(UUID.randomUUID(), "L-4", LockerSize.S, LockerState.AVAILABLE, null);
+        var locker = new Locker(com.smartlockr.shared.utils.UuidV7.generate(), "L-4", LockerSize.S, LockerState.AVAILABLE, null);
         var response = new LockerResponse(locker.getId(), "L-4", LockerSize.S, LockerState.AVAILABLE, BigDecimal.TEN);
 
         given(lockerRepository.findAllByOrderByLabelAsc()).willReturn(List.of(locker));
@@ -320,7 +320,7 @@ class FleetServiceTest {
     @Test
     @DisplayName("updateLockerState - actualiza estado y publica evento si cambia")
     void shouldUpdateLockerStateAndPublishEvent() {
-        var lockerId = UUID.randomUUID();
+        var lockerId = com.smartlockr.shared.utils.UuidV7.generate();
         var locker = new Locker(lockerId, "L-5", LockerSize.M, LockerState.AVAILABLE, null);
         var response = new LockerResponse(lockerId, "L-5", LockerSize.M, LockerState.MAINTENANCE, BigDecimal.TEN);
 
@@ -342,7 +342,7 @@ class FleetServiceTest {
     @Test
     @DisplayName("updateLockerState - no publica evento si el estado no cambia")
     void shouldNotPublishEventWhenStateUnchanged() {
-        var lockerId = UUID.randomUUID();
+        var lockerId = com.smartlockr.shared.utils.UuidV7.generate();
         var locker = new Locker(lockerId, "L-6", LockerSize.M, LockerState.AVAILABLE, null);
         var response = new LockerResponse(lockerId, "L-6", LockerSize.M, LockerState.AVAILABLE, BigDecimal.TEN);
 
@@ -367,7 +367,7 @@ class FleetServiceTest {
     @Test
     @DisplayName("updateLockerState - lanza IllegalArgumentException con state null")
     void shouldThrowWhenStateIsNull() {
-        assertThatThrownBy(() -> fleetService.updateLockerState(UUID.randomUUID(), null))
+        assertThatThrownBy(() -> fleetService.updateLockerState(com.smartlockr.shared.utils.UuidV7.generate(), null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Locker state cannot be null");
     }
@@ -375,7 +375,7 @@ class FleetServiceTest {
     @Test
     @DisplayName("updateLockerState - lanza LockerNotFoundException si el locker no existe")
     void shouldThrowLockerNotFoundWhenIdDoesNotExist() {
-        var lockerId = UUID.randomUUID();
+        var lockerId = com.smartlockr.shared.utils.UuidV7.generate();
         given(lockerRepository.findById(lockerId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> fleetService.updateLockerState(lockerId, LockerState.AVAILABLE))

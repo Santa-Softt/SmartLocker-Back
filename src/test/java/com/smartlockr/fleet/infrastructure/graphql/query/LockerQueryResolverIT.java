@@ -92,7 +92,7 @@ class LockerQueryResolverIT extends BaseIntegrationTest {
     @DisplayName("Should return available lockers (Integration with Mocked Resolver & HS512)")
     void shouldReturnAvailableLockersBySize() {
         LockerResponse mockResponse = new LockerResponse(
-                UUID.randomUUID(),
+                com.smartlockr.shared.utils.UuidV7.generate(),
                 "L-INT-001",
                 LockerSize.M,
                 LockerState.AVAILABLE,

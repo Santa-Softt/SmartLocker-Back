@@ -89,16 +89,4 @@ public class BusinessService {
         return saved;
     }
 
-    /**
-     * Persists a new business configuration and evicts the cache to ensure coherence.
-     * Intended for initial seeding or programmatic configuration creation.
-     *
-     * @param config the fully constructed {@link BusinessConfig} entity to persist
-     */
-    @CacheEvict(value = CacheNames.BUSINESS_CONFIG_CACHE, allEntries = true)
-    @Transactional
-    public void saveConfig(BusinessConfig config) {
-        businessConfigRepository.save(config);
-        log.info("BusinessConfig guardada. Cache invalidada.");
-    }
 }

@@ -1,7 +1,8 @@
 package com.smartlockr.shared.messaging;
 
+import com.smartlockr.shared.utils.UuidV7;
+
 import java.time.Instant;
-import java.util.UUID;
 
 public record MessageMetadata(
         String messageId,
@@ -13,11 +14,11 @@ public record MessageMetadata(
 
     public static MessageMetadata create(String correlationId) {
         String safeCorrelationId = correlationId == null || correlationId.isBlank()
-                ? UUID.randomUUID().toString()
+                ? UuidV7.generate().toString()
                 : correlationId;
 
         return new MessageMetadata(
-                UUID.randomUUID().toString(),
+                UuidV7.generate().toString(),
                 safeCorrelationId,
                 CURRENT_SCHEMA_VERSION,
                 Instant.now()

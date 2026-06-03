@@ -48,7 +48,7 @@ class RefreshTokenFactoryTest {
     void shouldCreateRefreshTokenWithCorrectShape() {
         // GIVEN
         User user = User.builder()
-                .id(java.util.UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .email("user@test.local")
                 .fullName("Test User")
                 .build();
@@ -81,7 +81,7 @@ class RefreshTokenFactoryTest {
     void shouldGenerateUniqueTokensOnEachCall() {
         // GIVEN
         User user = User.builder()
-                .id(java.util.UUID.randomUUID())
+                .id(com.smartlockr.shared.utils.UuidV7.generate())
                 .email("user@test.local")
                 .build();
         given(tokenHasher.hash(org.mockito.ArgumentMatchers.anyString())).willReturn("hashed");
@@ -103,7 +103,7 @@ class RefreshTokenFactoryTest {
                 Duration.ofMinutes(15), Duration.ofDays(7),
                 64, "http://localhost", "admin@test.com");
         RefreshTokenFactory factory = new RefreshTokenFactory(tokenHasher, bigProps);
-        User user = User.builder().id(java.util.UUID.randomUUID()).email("u@e.com").build();
+        User user = User.builder().id(com.smartlockr.shared.utils.UuidV7.generate()).email("u@e.com").build();
         given(tokenHasher.hash(org.mockito.ArgumentMatchers.anyString())).willReturn("h");
 
         // WHEN
